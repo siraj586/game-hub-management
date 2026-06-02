@@ -1,0 +1,9 @@
+from rest_framework import serializers
+from api.models import AuditLog
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = "__all__"

@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { font-family: 'Inter', sans-serif; }
+body { transition: background-color 0.2s ease; }
+
+.glass-card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(2px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.dark .glass-card {
+  background: rgba(0,0,0,0.25);
+  border-color: rgba(255,255,255,0.05);
+}
+.timer-mono { font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; }
+
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:#1e1e2f; border-radius:10px; }
+::-webkit-scrollbar-thumb { background:#ff5e7e; border-radius:10px; }
+.dark ::-webkit-scrollbar-track { background:#0f0f1a; }
+
+@keyframes pulse-ending {
+  0%   { color:inherit; transform:scale(1); }
+  50%  { color:#f59e0b; transform:scale(1.05); text-shadow:0 0 10px rgba(245,158,11,0.5); }
+  100% { color:inherit; transform:scale(1); }
+}
+.pulse-ending { animation:pulse-ending 1s infinite; font-weight:800; }
+
+.custom-scrollbar::-webkit-scrollbar { width:4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background:transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:10px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background:#475569; }
+
+#receipt-print-area {
+  background-color:#ffffff;
+  color:#1a1a1a;
+  font-family:'Courier New',Courier,monospace;
+}
+#receipt-print-area * { font-family:'Courier New',Courier,monospace !important; }
+.receipt-header { border-bottom:2px dashed #ccc; padding-bottom:10px; margin-bottom:10px; }
+.receipt-item { display:flex; justify-content:space-between; margin-bottom:4px; }
+.receipt-total-section { border-top:2px solid #333; padding-top:8px; margin-top:8px; }
+.receipt-footer { border-top:1px dashed #ccc; padding-top:10px; margin-top:15px; font-size:11px; text-align:center; }
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+.animate-bounce-slow { animation: bounce-slow 4s ease-in-out infinite; }
+
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }

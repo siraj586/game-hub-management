@@ -1,0 +1,1719 @@
+openapi: 3.0.3
+info:
+  title: GameHub API
+  version: 1.0.0
+  description: API documentation for the GameHub project
+paths:
+  /api/analytics/:
+    get:
+      operationId: analytics_retrieve
+      tags:
+      - analytics
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+          description: ''
+  /api/branches/:
+    get:
+      operationId: branches_list
+      tags:
+      - branches
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Branch'
+          description: ''
+    post:
+      operationId: branches_create
+      tags:
+      - branches
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Branch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Branch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Branch'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+          description: ''
+  /api/branches/{id}/:
+    get:
+      operationId: branches_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this branch.
+        required: true
+      tags:
+      - branches
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+          description: ''
+    put:
+      operationId: branches_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this branch.
+        required: true
+      tags:
+      - branches
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Branch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Branch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Branch'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+          description: ''
+    patch:
+      operationId: branches_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this branch.
+        required: true
+      tags:
+      - branches
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBranch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBranch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBranch'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+          description: ''
+    delete:
+      operationId: branches_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this branch.
+        required: true
+      tags:
+      - branches
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/feature-flags/:
+    get:
+      operationId: feature_flags_list
+      tags:
+      - feature-flags
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureFlag'
+          description: ''
+    post:
+      operationId: feature_flags_create
+      tags:
+      - feature-flags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+          description: ''
+  /api/feature-flags/{id}/:
+    get:
+      operationId: feature_flags_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this feature flag.
+        required: true
+      tags:
+      - feature-flags
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+          description: ''
+    put:
+      operationId: feature_flags_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this feature flag.
+        required: true
+      tags:
+      - feature-flags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeatureFlag'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+          description: ''
+    patch:
+      operationId: feature_flags_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this feature flag.
+        required: true
+      tags:
+      - feature-flags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFeatureFlag'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFeatureFlag'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFeatureFlag'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+          description: ''
+    delete:
+      operationId: feature_flags_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this feature flag.
+        required: true
+      tags:
+      - feature-flags
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/inventory-categories/:
+    get:
+      operationId: inventory_categories_list
+      tags:
+      - inventory-categories
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryCategory'
+          description: ''
+    post:
+      operationId: inventory_categories_create
+      tags:
+      - inventory-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCategory'
+          description: ''
+  /api/inventory-categories/{id}/:
+    get:
+      operationId: inventory_categories_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory category.
+        required: true
+      tags:
+      - inventory-categories
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCategory'
+          description: ''
+    put:
+      operationId: inventory_categories_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory category.
+        required: true
+      tags:
+      - inventory-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InventoryCategory'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCategory'
+          description: ''
+    patch:
+      operationId: inventory_categories_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory category.
+        required: true
+      tags:
+      - inventory-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryCategory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryCategory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryCategory'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCategory'
+          description: ''
+    delete:
+      operationId: inventory_categories_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory category.
+        required: true
+      tags:
+      - inventory-categories
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/inventory-items/:
+    get:
+      operationId: inventory_items_list
+      tags:
+      - inventory-items
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryItem'
+          description: ''
+    post:
+      operationId: inventory_items_create
+      tags:
+      - inventory-items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+          description: ''
+  /api/inventory-items/{id}/:
+    get:
+      operationId: inventory_items_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory item.
+        required: true
+      tags:
+      - inventory-items
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+          description: ''
+    put:
+      operationId: inventory_items_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory item.
+        required: true
+      tags:
+      - inventory-items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+          description: ''
+    patch:
+      operationId: inventory_items_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory item.
+        required: true
+      tags:
+      - inventory-items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInventoryItem'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+          description: ''
+    delete:
+      operationId: inventory_items_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this inventory item.
+        required: true
+      tags:
+      - inventory-items
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/resource-types/:
+    get:
+      operationId: resource_types_list
+      tags:
+      - resource-types
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceType'
+          description: ''
+    post:
+      operationId: resource_types_create
+      tags:
+      - resource-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+          description: ''
+  /api/resource-types/{id}/:
+    get:
+      operationId: resource_types_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource type.
+        required: true
+      tags:
+      - resource-types
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+          description: ''
+    put:
+      operationId: resource_types_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource type.
+        required: true
+      tags:
+      - resource-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResourceType'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+          description: ''
+    patch:
+      operationId: resource_types_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource type.
+        required: true
+      tags:
+      - resource-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceType'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceType'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceType'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+          description: ''
+    delete:
+      operationId: resource_types_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource type.
+        required: true
+      tags:
+      - resource-types
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/resource-units/:
+    get:
+      operationId: resource_units_list
+      tags:
+      - resource-units
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceUnit'
+          description: ''
+    post:
+      operationId: resource_units_create
+      tags:
+      - resource-units
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceUnit'
+          description: ''
+  /api/resource-units/{id}/:
+    get:
+      operationId: resource_units_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource unit.
+        required: true
+      tags:
+      - resource-units
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceUnit'
+          description: ''
+    put:
+      operationId: resource_units_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource unit.
+        required: true
+      tags:
+      - resource-units
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResourceUnit'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceUnit'
+          description: ''
+    patch:
+      operationId: resource_units_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource unit.
+        required: true
+      tags:
+      - resource-units
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceUnit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceUnit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResourceUnit'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceUnit'
+          description: ''
+    delete:
+      operationId: resource_units_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource unit.
+        required: true
+      tags:
+      - resource-units
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/sessions/:
+    get:
+      operationId: sessions_list
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+          description: ''
+    post:
+      operationId: sessions_create
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Session'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Session'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/sessions/{id}/:
+    get:
+      operationId: sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+    put:
+      operationId: sessions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Session'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Session'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+    patch:
+      operationId: sessions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSession'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+    delete:
+      operationId: sessions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/sessions/{id}/add_order/:
+    post:
+      operationId: sessions_add_order_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Session'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Session'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/sessions/{id}/end/:
+    post:
+      operationId: sessions_end_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Session'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Session'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/sessions/{id}/pause/:
+    post:
+      operationId: sessions_pause_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this session.
+        required: true
+      tags:
+      - sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Session'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Session'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/setup/bulk/:
+    post:
+      operationId: setup_bulk_create
+      tags:
+      - setup
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    AuthToken:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        token:
+          type: string
+          readOnly: true
+      required:
+      - password
+      - token
+      - username
+    Branch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        code:
+          type: string
+          maxLength: 20
+        address:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - id
+      - name
+    FeatureFlag:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        key:
+          type: string
+          maxLength: 100
+        enabled:
+          type: boolean
+        config: {}
+        branch:
+          type: integer
+      required:
+      - branch
+      - id
+      - key
+    InventoryCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 30
+        branch:
+          type: integer
+      required:
+      - branch
+      - code
+      - id
+      - name
+    InventoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        branch_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        sku:
+          type: string
+          maxLength: 50
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        cost_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        quantity_in_stock:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        metadata: {}
+        category:
+          type: integer
+      required:
+      - branch_id
+      - category
+      - category_name
+      - id
+      - name
+      - sale_price
+    PatchedBranch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        code:
+          type: string
+          maxLength: 20
+        address:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedFeatureFlag:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        key:
+          type: string
+          maxLength: 100
+        enabled:
+          type: boolean
+        config: {}
+        branch:
+          type: integer
+    PatchedInventoryCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 30
+        branch:
+          type: integer
+    PatchedInventoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        branch_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        sku:
+          type: string
+          maxLength: 50
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        cost_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        quantity_in_stock:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        metadata: {}
+        category:
+          type: integer
+    PatchedResourceType:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        code:
+          type: string
+          maxLength: 30
+        prefix:
+          type: string
+          maxLength: 10
+        pricing_strategy:
+          $ref: '#/components/schemas/PricingStrategyEnum'
+        base_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        metadata: {}
+        is_active:
+          type: boolean
+    PatchedResourceUnit:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        resource_type_name:
+          type: string
+          readOnly: true
+        branch_name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          maxLength: 50
+        display_name:
+          type: string
+          maxLength: 120
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        metadata: {}
+        is_active:
+          type: boolean
+        branch:
+          type: integer
+        resource_type:
+          type: integer
+    PatchedSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        customer_name:
+          type: string
+          maxLength: 200
+        branch:
+          type: integer
+        branchName:
+          type: string
+          readOnly: true
+        resource_unit:
+          type: integer
+        resourceType:
+          type: string
+          readOnly: true
+        stationId:
+          type: string
+          readOnly: true
+        session_type:
+          $ref: '#/components/schemas/SessionTypeEnum'
+        custom_price_per_hour:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        fixed_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        duration_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        planned_end_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        is_paused:
+          type: boolean
+        last_pause_time:
+          type: string
+          format: date-time
+          nullable: true
+        total_paused_ms:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        discount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        metadata: {}
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionOrder'
+          readOnly: true
+        durationMinutes:
+          type: string
+          readOnly: true
+        totalCost:
+          type: string
+          readOnly: true
+        ordersCost:
+          type: string
+          readOnly: true
+    PricingStrategyEnum:
+      enum:
+      - HOURLY
+      - FIXED
+      - PER_GAME
+      type: string
+      description: |-
+        * `HOURLY` - Hourly
+        * `FIXED` - Fixed
+        * `PER_GAME` - Per Game
+    ResourceType:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        code:
+          type: string
+          maxLength: 30
+        prefix:
+          type: string
+          maxLength: 10
+        pricing_strategy:
+          $ref: '#/components/schemas/PricingStrategyEnum'
+        base_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        metadata: {}
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+      - prefix
+    ResourceUnit:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        resource_type_name:
+          type: string
+          readOnly: true
+        branch_name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          maxLength: 50
+        display_name:
+          type: string
+          maxLength: 120
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        metadata: {}
+        is_active:
+          type: boolean
+        branch:
+          type: integer
+        resource_type:
+          type: integer
+      required:
+      - branch
+      - branch_name
+      - code
+      - id
+      - resource_type
+      - resource_type_name
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        customer_name:
+          type: string
+          maxLength: 200
+        branch:
+          type: integer
+        branchName:
+          type: string
+          readOnly: true
+        resource_unit:
+          type: integer
+        resourceType:
+          type: string
+          readOnly: true
+        stationId:
+          type: string
+          readOnly: true
+        session_type:
+          $ref: '#/components/schemas/SessionTypeEnum'
+        custom_price_per_hour:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        fixed_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        duration_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        planned_end_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        is_paused:
+          type: boolean
+        last_pause_time:
+          type: string
+          format: date-time
+          nullable: true
+        total_paused_ms:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        discount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        metadata: {}
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionOrder'
+          readOnly: true
+        durationMinutes:
+          type: string
+          readOnly: true
+        totalCost:
+          type: string
+          readOnly: true
+        ordersCost:
+          type: string
+          readOnly: true
+      required:
+      - branch
+      - branchName
+      - customer_name
+      - durationMinutes
+      - id
+      - orders
+      - ordersCost
+      - resourceType
+      - resource_unit
+      - stationId
+      - totalCost
+    SessionOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        inventory_item:
+          type: integer
+          nullable: true
+        item_name:
+          type: string
+          maxLength: 150
+        quantity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        time:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - item_name
+      - name
+      - price
+      - time
+      - timestamp
+      - total_price
+      - unit_price
+    SessionTypeEnum:
+      enum:
+      - PRE
+      - POST
+      type: string
+      description: |-
+        * `PRE` - Prepaid
+        * `POST` - Postpaid
+    StatusEnum:
+      enum:
+      - AVAILABLE
+      - MAINTENANCE
+      - DISABLED
+      type: string
+      description: |-
+        * `AVAILABLE` - Available
+        * `MAINTENANCE` - Maintenance
+        * `DISABLED` - Disabled
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"
