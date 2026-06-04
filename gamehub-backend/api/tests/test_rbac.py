@@ -34,6 +34,28 @@ class RBACTests(BaseAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("role", response.data)
 
+    def test_last_owner_account_is_protected(self):
+        self.authenticate("owner")
+
+        demote_response = self.client.patch(
+            f"{self.users_url}{self.owner.id}/",
+            {"role": User.ROLE_STAFF},
+        )
+        self.assertEqual(demote_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        disable_response = self.client.patch(
+            f"{self.users_url}{self.owner.id}/",
+            {"is_active": False},
+        )
+        self.assertEqual(disable_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        delete_response = self.client.delete(f"{self.users_url}{self.owner.id}/")
+        self.assertEqual(delete_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.role, User.ROLE_OWNER)
+        self.assertTrue(self.owner.is_active)
+
     def test_staff_shift_report_requires_permission(self):
         DailyReport.objects.create(date=timezone.now().date(), total_revenue=100)
 

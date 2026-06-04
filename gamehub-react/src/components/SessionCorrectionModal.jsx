@@ -10,7 +10,7 @@ const toLocalInput = (value) => {
 };
 
 const SessionCorrectionModal = ({ session, onClose }) => {
-  const { cafeItems, correctSession } = useApp();
+  const { cafeItems, correctSession, showAlert, t } = useApp();
   const [startTime, setStartTime] = useState(toLocalInput(session?.startTime));
   const [endTime, setEndTime] = useState(toLocalInput(session?.endTime));
   const [stationId, setStationId] = useState(session?.stationId || '');
@@ -35,7 +35,7 @@ const SessionCorrectionModal = ({ session, onClose }) => {
 
   const handleSave = async () => {
     if (!reason.trim()) {
-      alert('Correction reason is required.');
+      await showAlert(t('correction_reason_required'));
       return;
     }
 

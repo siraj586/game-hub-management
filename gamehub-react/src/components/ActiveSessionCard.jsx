@@ -4,7 +4,7 @@ import { getActiveDurationMs, formatRemaining, getDeviceColorTone, getDeviceTint
 import { hasAnyPermission, hasPermission } from '../utils/permissions';
 
 const ActiveSessionCard = ({ session, onOpenBuffet }) => {
-  const { darkMode, togglePauseSession, endSession, removeOrderFromSession, permissions, t } = useApp();
+  const { darkMode, togglePauseSession, endSession, removeOrderFromSession, permissions, showConfirm, t } = useApp();
   const canAddOrder = hasPermission(permissions, 'can_add_session_order');
   const [display, setDisplay] = useState({ timer: '00:00:00', cost: 0, pulsing: false });
 
@@ -20,10 +20,15 @@ const ActiveSessionCard = ({ session, onOpenBuffet }) => {
   ]);
   const intervalRef = useRef(null);
 
-  const handleRemoveOrder = (orderId, itemName) => {
-    if (window.confirm(`Permanently remove ${itemName} order and restore stock?`)) {
-      removeOrderFromSession(session.id, orderId);
-    }
+  const handleRemoveOrder = async (orderId, itemName) => {
+    const confirmed = await showConfirm({
+      title: t('dialog_remove'),
+      message: t('confirm_remove_order').replace('{item}', itemName),
+      confirmText: t('dialog_remove'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    removeOrderFromSession(session.id, orderId);
   };
 
   useEffect(() => {
@@ -80,10 +85,15 @@ const ActiveSessionCard = ({ session, onOpenBuffet }) => {
   const deviceTone = getDeviceColorTone(deviceColorKey, darkMode);
 
 
-  const handleEnd = () => {
-    if (window.confirm("End this session now?")) {
-      endSession(session.id);
-    }
+  const handleEnd = async () => {
+    const confirmed = await showConfirm({
+      title: t('dialog_end'),
+      message: t('confirm_end_session_now'),
+      confirmText: t('dialog_end'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    endSession(session.id);
   };
 
   return (

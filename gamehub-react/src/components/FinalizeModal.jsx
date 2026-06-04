@@ -4,7 +4,7 @@ import { formatDuration } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 
 const FinalizeModal = ({ sessionId, onClose }) => {
-  const { sessions, endSession, permissions, systemName, currentUser } = useApp();
+  const { sessions, endSession, permissions, systemName, currentUser, showAlert, showConfirm, t } = useApp();
   const [discount, setDiscount] = useState(0);
   const receiptRef = useRef(null);
 
@@ -23,11 +23,16 @@ const FinalizeModal = ({ sessionId, onClose }) => {
     : 0;
   const total = Math.max(0, backendTotal - (session.endTime ? 0 : appliedDiscount));
 
-  const handleEnd = () => {
-    if (window.confirm("Are you sure you want to end this session? This will finalize all costs.")) {
-      endSession(sessionId, appliedDiscount);
-      onClose();
-    }
+  const handleEnd = async () => {
+    const confirmed = await showConfirm({
+      title: t('dialog_end'),
+      message: t('confirm_finalize_session'),
+      confirmText: t('dialog_end'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    endSession(sessionId, appliedDiscount);
+    onClose();
   };
 
   const downloadReceipt = async () => {
@@ -42,7 +47,7 @@ const FinalizeModal = ({ sessionId, onClose }) => {
       link.href = imgData;
       link.click();
     } catch {
-      alert("Could not generate receipt image.");
+      await showAlert(t('receipt_image_error'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 

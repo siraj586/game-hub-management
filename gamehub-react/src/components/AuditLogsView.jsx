@@ -2,20 +2,20 @@ import { useApp } from '../context/AppContext';
 import { isOwnerUser } from '../utils/permissions';
 
 const AuditLogsView = () => {
-  const { auditLogs, clearAuditLogs, currentUser } = useApp();
+  const { auditLogs, clearAuditLogs, currentUser, t } = useApp();
 
   const isOwner = isOwnerUser(currentUser);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold dark:text-white text-gray-800">System Activity Logs</h3>
+        <h3 className="text-lg font-bold dark:text-white text-gray-800">{t('system_activity_logs')}</h3>
         {isOwner && (
           <button 
             onClick={clearAuditLogs}
             className="px-4 py-2 border border-red-500/50 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition"
           >
-            <i className="fas fa-trash-alt mr-2"></i> Clear All Logs
+            <i className="fas fa-trash-alt mr-2"></i> {t('clear_all_logs')}
           </button>
         )}
       </div>
@@ -25,17 +25,17 @@ const AuditLogsView = () => {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 text-[10px] uppercase font-black text-gray-400">
               <tr>
-                <th className="px-4 py-3">Time</th>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Resource</th>
-                <th className="px-4 py-3">Changes</th>
+                <th className="px-4 py-3">{t('log_time')}</th>
+                <th className="px-4 py-3">{t('log_user')}</th>
+                <th className="px-4 py-3">{t('log_resource')}</th>
+                <th className="px-4 py-3">{t('log_changes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {auditLogs.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-4 py-10 text-center text-gray-400 opacity-50 italic">
-                    No activity logs found.
+                    {t('no_activity_logs')}
                   </td>
                 </tr>
               ) : (
@@ -62,7 +62,7 @@ const AuditLogsView = () => {
       </div>
       <p className="text-[10px] text-gray-500 italic flex items-center gap-2">
         <i className="fas fa-info-circle"></i>
-        Logs generated automatically whenever pricing or critical settings are updated. Only Owner can clear these logs.
+        {t('audit_logs_hint')}
       </p>
     </div>
   );

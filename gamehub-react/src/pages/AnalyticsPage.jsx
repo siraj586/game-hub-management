@@ -23,6 +23,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
     currencySettings,
     checkAutoEnd,
     saveCurrencySettings,
+    showAlert,
     t,
   } = useApp();
   const [calculatorAmount, setCalculatorAmount] = useState('1');
@@ -117,11 +118,11 @@ const AnalyticsPage = ({ onOpenReport }) => {
   const handleSaveCurrency = async () => {
     if (tempCurrency.local_currency_enabled) {
       if (!tempCurrency.local_currency_code || !tempCurrency.local_currency_name) {
-        alert('Local currency code and name are required.');
+        await showAlert(t('local_currency_required'));
         return;
       }
       if (!(Number(tempCurrency.local_units_per_usd) > 0)) {
-        alert('Exchange rate must be greater than 0.');
+        await showAlert(t('exchange_rate_required'));
         return;
       }
     }

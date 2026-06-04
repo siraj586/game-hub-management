@@ -9,7 +9,7 @@ import {
 } from '../utils/currency';
 
 const SessionForm = () => {
-  const { devices, addSession, isStationActive, permissions, currencySettings, t } = useApp();
+  const { devices, addSession, isStationActive, permissions, currencySettings, showAlert, t } = useApp();
   const [name, setName] = useState('');
 
   const canStartSession = hasPermission(permissions, 'can_start_session');
@@ -59,17 +59,17 @@ const SessionForm = () => {
     );
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canStartSession) return;
-    if (!selectedDeviceType || !selectedStationId) { alert(t('select_device_station')); return; }
-    if (selectedStation?.isStopped) { alert(`${t('station')} ${selectedStationId} is stopped.`); return; }
+    if (!selectedDeviceType || !selectedStationId) { await showAlert(t('select_device_station')); return; }
+    if (selectedStation?.isStopped) { await showAlert(`${t('station')} ${selectedStationId} is stopped.`); return; }
 
-    if (strategy === 'HOURLY' && pricePerHour < 0) { alert(t('price_must_be_positive')); return; }
-    if (strategy !== 'HOURLY' && fixedPrice < 0) { alert(t('price_must_be_positive')); return; }
-    if (strategy === 'HOURLY' && sessionType === 'PRE' && durationHours <= 0) { alert(t('duration_must_be_positive')); return; }
-    if (strategy === 'HOURLY' && sessionType === 'PRE' && prepaidAmount && Number(prepaidAmount) <= 0) { alert(t('price_must_be_positive')); return; }
-    if (isStationActive(selectedStationId)) { alert(`${t('station')} ${selectedStationId} ${t('is_already_occupied')}`); return; }
+    if (strategy === 'HOURLY' && pricePerHour < 0) { await showAlert(t('price_must_be_positive')); return; }
+    if (strategy !== 'HOURLY' && fixedPrice < 0) { await showAlert(t('price_must_be_positive')); return; }
+    if (strategy === 'HOURLY' && sessionType === 'PRE' && durationHours <= 0) { await showAlert(t('duration_must_be_positive')); return; }
+    if (strategy === 'HOURLY' && sessionType === 'PRE' && prepaidAmount && Number(prepaidAmount) <= 0) { await showAlert(t('price_must_be_positive')); return; }
+    if (isStationActive(selectedStationId)) { await showAlert(`${t('station')} ${selectedStationId} ${t('is_already_occupied')}`); return; }
 
     addSession({
       name: name.trim(),

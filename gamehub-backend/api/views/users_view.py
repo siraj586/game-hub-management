@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -15,6 +16,29 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all().order_by("id")
     permission_classes = [IsOwner]
+
+    def _is_last_owner(self, user):
+        return (
+            user.role == User.ROLE_OWNER
+            and User.objects.filter(role=User.ROLE_OWNER).exclude(id=user.id).count() == 0
+        )
+
+    def perform_update(self, serializer):
+        user = self.get_object()
+        data = serializer.validated_data
+        if self._is_last_owner(user):
+            if data.get("role", user.role) != User.ROLE_OWNER:
+                raise ValidationError({"role": "The last owner account cannot be demoted."})
+            if data.get("is_active", user.is_active) is False:
+                raise ValidationError({"is_active": "The last owner account cannot be disabled."})
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.id == self.request.user.id:
+            raise ValidationError({"user": "You cannot delete your own account."})
+        if self._is_last_owner(instance):
+            raise ValidationError({"user": "The last owner account cannot be deleted."})
+        instance.delete()
 
 
 class CustomObtainAuthToken(ObtainAuthToken):

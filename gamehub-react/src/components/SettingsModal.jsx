@@ -6,13 +6,29 @@ import AuditLogsView from './AuditLogsView';
 import { hasPermission } from '../utils/permissions';
 
 const expenseCategories = [
-  ['electricity', 'Electricity'],
-  ['internet', 'Internet'],
-  ['rent', 'Rent'],
-  ['salaries', 'Salaries'],
-  ['maintenance', 'Maintenance'],
-  ['other', 'Other'],
+  ['electricity', 'expense_electricity'],
+  ['internet', 'expense_internet'],
+  ['rent', 'expense_rent'],
+  ['salaries', 'expense_salaries'],
+  ['maintenance', 'expense_maintenance'],
+  ['other', 'expense_other'],
 ];
+
+const deviceSnapshot = (deviceList) =>
+  deviceList.map(device => ({
+    id: (device.id || '').trim(),
+    name: (device.name || '').trim(),
+    prefix: (device.prefix || '').trim(),
+    count: Number(device.count || 0),
+    pricing_strategy: device.pricing_strategy || 'HOURLY',
+    base_price: Number(device.base_price || 0),
+    stations: (device.stations || [])
+      .map(station => ({
+        code: station.code,
+        status: station.status || 'ACTIVE',
+      }))
+      .sort((a, b) => a.code.localeCompare(b.code)),
+  }));
 
 const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
   const {
@@ -25,6 +41,9 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
     saveMonthlyExpense,
     resetSetup,
     permissions,
+    showAlert,
+    showConfirm,
+    t,
   } = useApp();
   const [tempDevices, setTempDevices] = useState([]);
   const [tempExpenseSettings, setTempExpenseSettings] = useState({});
@@ -82,7 +101,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
     let newId = 'NEW';
     let counter = 1;
     while (tempDevices.some(d => d.id === newId)) { newId = `NEW${counter}`; counter++; }
-    setTempDevices(prev => [...prev, { id: newId, name: 'NEW DEVICE', prefix: 'ND-', count: 1, stations: [], pricing_strategy: 'HOURLY', base_price: 5.00 }]);
+    setTempDevices(prev => [...prev, { id: newId, name: t('new_device'), prefix: 'ND-', count: 1, stations: [], pricing_strategy: 'HOURLY', base_price: 5.00 }]);
   };
 
   const updateExpenseEnabled = (field, value) => {
@@ -101,23 +120,33 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
       count: d.count <= 0 || isNaN(d.count) ? 1 : d.count,
     }));
     for (let d of sanitizedDevices) {
-      if (!d.id || !d.name || !d.prefix) { alert("All fields must be filled out for devices."); return; }
-      if (deviceIds.has(d.id.toLowerCase())) { alert(`Device ID "${d.id}" is duplicated.`); return; }
+      if (!d.id || !d.name || !d.prefix) { await showAlert(t('settings_devices_required')); return; }
+      if (deviceIds.has(d.id.toLowerCase())) { await showAlert(t('settings_duplicate_device').replace('{id}', d.id)); return; }
       deviceIds.add(d.id.toLowerCase());
     }
-    await saveSettings(sanitizedDevices, cafeItems, undefined, null);
-    await saveMonthlyExpenseSettings(tempExpenseSettings);
+    const devicesChanged =
+      JSON.stringify(deviceSnapshot(sanitizedDevices)) !== JSON.stringify(deviceSnapshot(devices));
+
+    if (devicesChanged) {
+      const settingsSaved = await saveSettings(sanitizedDevices, cafeItems, undefined, null);
+      if (!settingsSaved) return;
+    }
+
+    const expenseSettingsSaved = await saveMonthlyExpenseSettings(tempExpenseSettings);
+    if (!expenseSettingsSaved) return;
+
     const hasEnabledExpense = expenseCategories.some(([key]) => tempExpenseSettings[key]);
     if (hasEnabledExpense) {
       const monthlyPayload = expenseCategories.reduce((acc, [key]) => ({
         ...acc,
         [key]: Number(tempMonthlyExpense[key] || 0),
       }), {});
-      await saveMonthlyExpense({
+      const monthlyExpenseSaved = await saveMonthlyExpense({
         ...monthlyPayload,
         notes: tempMonthlyExpense.notes || '',
         month: `${expenseMonth}-01`,
       });
+      if (!monthlyExpenseSaved) return;
     }
     if (onClose) onClose();
   };
@@ -145,10 +174,10 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
               <span className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
                 <i className="fas fa-sliders" />
               </span>
-              System Settings
+              {t('system_settings')}
             </h2>
             <p className="text-xs sm:text-sm dark:text-gray-500 text-gray-400 mt-1">
-              Configure the center, POS money rules, monthly costs, and device availability.
+              {t('system_settings_subtitle')}
             </p>
           </div>
           {!embedded && (
@@ -168,7 +197,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
               `}
             >
               <i className="fas fa-cash-register mr-2" />
-              System & POS
+              {t('tab_system_pos')}
             </button>
           )}
           {canManageUsers && (
@@ -179,7 +208,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
               `}
             >
               <i className="fas fa-users-gear mr-2" />
-              Manage Staff
+              {t('tab_manage_staff')}
             </button>
           )}
           {canViewLogs && (
@@ -190,7 +219,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
               `}
             >
               <i className="fas fa-shield-halved mr-2" />
-              Audit Logs
+              {t('tab_audit_logs')}
             </button>
           )}
         </div>
@@ -214,27 +243,27 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                 <div className="mb-5 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-300 text-sm flex gap-3 items-start">
                   <i className="fas fa-circle-info text-xl mt-0.5"></i>
                   <div>
-                    <p className="font-black">Start by adding the game center devices.</p>
-                    <p className="opacity-80 mt-1">Add PC, PlayStation, or other station types here. Cafe inventory is managed from the POS Sale page.</p>
+                    <p className="font-black">{t('settings_empty_devices_title')}</p>
+                    <p className="opacity-80 mt-1">{t('settings_empty_devices_hint')}</p>
                   </div>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
                 <div className={panelClass}>
-                  <p className="text-[11px] uppercase font-black text-gray-400">Device Types</p>
+                  <p className="text-[11px] uppercase font-black text-gray-400">{t('device_types')}</p>
                   <p className="text-2xl font-black dark:text-white text-gray-800 mt-1">{tempDevices.length}</p>
-                  <p className="text-xs text-gray-400 mt-1">Configured play categories</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('configured_play_categories')}</p>
                 </div>
                 <div className={panelClass}>
-                  <p className="text-[11px] uppercase font-black text-gray-400">Stations</p>
+                  <p className="text-[11px] uppercase font-black text-gray-400">{t('stations')}</p>
                   <p className="text-2xl font-black dark:text-white text-gray-800 mt-1">{totalStations}</p>
-                  <p className="text-xs text-gray-400 mt-1">{stoppedStations} stopped</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('stopped_count').replace('{count}', stoppedStations)}</p>
                 </div>
                 <div className={panelClass}>
-                  <p className="text-[11px] uppercase font-black text-gray-400">Monthly Expenses</p>
+                  <p className="text-[11px] uppercase font-black text-gray-400">{t('monthly_expenses')}</p>
                   <p className="text-2xl font-black dark:text-white text-gray-800 mt-1">{enabledExpenseCount}</p>
-                  <p className="text-xs text-gray-400 mt-1">Tracked cost types</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('tracked_cost_types')}</p>
                 </div>
               </div>
 
@@ -242,16 +271,16 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div>
                     <h3 className="font-black text-gray-800 dark:text-white flex items-center gap-2">
-                      <i className="fas fa-receipt text-rose-500"></i> Monthly Expenses
+                      <i className="fas fa-receipt text-rose-500"></i> {t('monthly_expenses')}
                     </h3>
-                    <p className="text-xs text-gray-400 mt-1">Enable the cost types you actually track, then enter values at month end.</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('monthly_expenses_hint')}</p>
                   </div>
                   <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-rose-500/10 text-rose-500">
-                    {enabledExpenseCount} active
+                    {t('active_count').replace('{count}', enabledExpenseCount)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
-                  {expenseCategories.map(([key, label]) => (
+                  {expenseCategories.map(([key, labelKey]) => (
                     <label
                       key={key}
                       className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm font-bold ${
@@ -260,7 +289,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                           : 'dark:border-gray-700 border-gray-200 dark:bg-gray-900 bg-gray-50 text-gray-500'
                       }`}
                     >
-                      <span>{label}</span>
+                      <span>{t(labelKey)}</span>
                       <input
                         type="checkbox"
                         checked={Boolean(tempExpenseSettings[key])}
@@ -272,7 +301,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className={labelClass}>Month</label>
+                    <label className={labelClass}>{t('month')}</label>
                     <input
                       type="month"
                       value={expenseMonth}
@@ -280,9 +309,9 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                       className={inputClass}
                     />
                   </div>
-                  {enabledExpenseCategories.map(([key, label]) => (
+                  {enabledExpenseCategories.map(([key, labelKey]) => (
                     <div key={key}>
-                      <label className={labelClass}>{label} ($)</label>
+                      <label className={labelClass}>{t(labelKey)} ($)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -295,7 +324,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                   ))}
                   {enabledExpenseCount > 0 && (
                     <div className="sm:col-span-3">
-                      <label className={labelClass}>Notes</label>
+                      <label className={labelClass}>{t('notes')}</label>
                       <input
                         type="text"
                         value={tempMonthlyExpense.notes || ''}
@@ -311,13 +340,13 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div>
                   <h3 className="font-black text-gray-800 dark:text-white flex items-center gap-2">
-                    <i className="fas fa-gamepad text-indigo-500"></i> Gaming Devices
+                    <i className="fas fa-gamepad text-indigo-500"></i> {t('gaming_devices')}
                   </h3>
-                  <p className="text-xs text-gray-400 mt-1">Define station groups, pricing, and simple active/stopped availability.</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('gaming_devices_hint')}</p>
                 </div>
                 {canFullConfig && (
                   <button onClick={addDevice} className="px-4 py-2.5 text-sm bg-indigo-500 text-white hover:bg-indigo-600 rounded-xl font-black transition shadow-sm">
-                    <i className="fas fa-plus mr-2"></i> Add Device
+                    <i className="fas fa-plus mr-2"></i> {t('add_device')}
                   </button>
                 )}
               </div>
@@ -326,11 +355,11 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                   <div key={index} className={panelClass}>
                     <div className="flex items-center justify-between gap-3 mb-4">
                       <div className="min-w-0">
-                        <p className="text-sm font-black dark:text-white text-gray-800 truncate">{d.name || 'Device Type'}</p>
-                        <p className="text-xs text-gray-400 font-mono">{d.id || 'ID'} · {d.count || 0} stations</p>
+                        <p className="text-sm font-black dark:text-white text-gray-800 truncate">{d.name || t('device_type_fallback')}</p>
+                        <p className="text-xs text-gray-400 font-mono">{d.id || 'ID'} · {d.count || 0} {t('stations')}</p>
                       </div>
                       {canFullConfig && (
-                        <button onClick={() => removeDevice(index)} className="w-9 h-9 rounded-lg text-red-500 hover:bg-red-500/10 transition" title="Remove device type">
+                        <button onClick={() => removeDevice(index)} className="w-9 h-9 rounded-lg text-red-500 hover:bg-red-500/10 transition" title={t('remove_device_type')}>
                           <i className="fas fa-trash"></i>
                         </button>
                       )}
@@ -342,40 +371,40 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                           className={inputClass} />
                       </div>
                       <div className="lg:col-span-4">
-                        <label className={labelClass}>Display Name</label>
+                        <label className={labelClass}>{t('display_name')}</label>
                         <input type="text" value={d.name} onChange={e => updateDevice(index, 'name', e.target.value)}
                           className={inputClass} />
                       </div>
                       <div className="lg:col-span-2">
-                        <label className={labelClass}>Prefix</label>
+                        <label className={labelClass}>{t('prefix')}</label>
                         <input type="text" value={d.prefix} onChange={e => updateDevice(index, 'prefix', e.target.value)}
                           className={inputClass} />
                       </div>
                       <div className="lg:col-span-2">
-                        <label className={labelClass}>Count</label>
+                        <label className={labelClass}>{t('count')}</label>
                         <input type="number" min="1" value={d.count} onChange={e => updateDevice(index, 'count', parseInt(e.target.value) || 1)}
                           className={inputClass} />
                       </div>
                       <div className="lg:col-span-2">
-                        <label className={labelClass}>Base Price ($)</label>
+                        <label className={labelClass}>{t('base_price')} ($)</label>
                         <input type="number" step="0.5" min="0" value={d.base_price} onChange={e => updateDevice(index, 'base_price', parseFloat(e.target.value) || 0)}
                           className={inputClass} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className={labelClass}>Pricing Strategy</label>
+                        <label className={labelClass}>{t('pricing_strategy')}</label>
                         <select value={d.pricing_strategy} onChange={e => updateDevice(index, 'pricing_strategy', e.target.value)}
                           className={inputClass}>
-                          <option value="HOURLY">Hourly Rate</option>
-                          <option value="FIXED">Fixed Price</option>
-                          <option value="PER_GAME">Per Game</option>
+                          <option value="HOURLY">{t('hourly_rate')}</option>
+                          <option value="FIXED">{t('fixed_price')}</option>
+                          <option value="PER_GAME">{t('per_game')}</option>
                         </select>
                       </div>
                     </div>
                     {(d.stations || []).length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <p className={labelClass}>Station Status</p>
+                        <p className={labelClass}>{t('station_status')}</p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                           {d.stations.map(station => (
                             <div key={station.code} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-2">
@@ -394,7 +423,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                                     : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                 }`}
                               >
-                                {station.status === 'STOPPED' ? 'Stopped' : 'Working'}
+                                {station.status === 'STOPPED' ? t('stopped') : t('working')}
                               </button>
                             </div>
                           ))}
@@ -416,14 +445,18 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
         <div className="p-4 sm:p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center gap-3 flex-wrap">
           {canFullConfig && (
             <button
-              onClick={() => {
-                if (window.confirm('This will take you back to the Setup Wizard. Continue?')) {
-                  resetSetup();
-                }
+              onClick={async () => {
+                const confirmed = await showConfirm({
+                  title: t('rerun_setup'),
+                  message: t('rerun_setup_confirm'),
+                  confirmText: t('dialog_reset'),
+                  variant: 'danger',
+                });
+                if (confirmed) resetSetup();
               }}
               className="px-4 py-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:hover:bg-red-900/20 rounded-xl transition font-medium flex items-center gap-2"
             >
-              <i className="fas fa-rotate-left"></i> Re-run Setup
+              <i className="fas fa-rotate-left"></i> {t('rerun_setup')}
             </button>
           )}
           {canFullConfig && (
@@ -433,7 +466,7 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                 ${activeTab !== 'system' && 'hidden'}
               `}
             >
-              <i className="fas fa-save mr-1"></i> Save Changes
+              <i className="fas fa-save mr-1"></i> {t('save_changes')}
             </button>
           )}
         </div>

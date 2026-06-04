@@ -4,7 +4,7 @@ import { formatMoney } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 
 const DailyReportModal = ({ isOpen, onClose }) => {
-  const { analytics, sessions, cafeItems, closeDayReport, permissions, t } = useApp();
+  const { analytics, sessions, cafeItems, closeDayReport, permissions, showConfirm, t } = useApp();
   const [loading, setLoading] = useState(false);
   const [closedReport, setClosedReport] = useState(null);
   const [closeError, setCloseError] = useState('');
@@ -19,7 +19,13 @@ const DailyReportModal = ({ isOpen, onClose }) => {
   const totalCafeEarnings = todaysSessions.reduce((sum, s) => sum + (s.ordersCost || 0), 0);
 
   const handleCloseDay = async () => {
-    if (!window.confirm(t('confirm_close_day'))) return;
+    const confirmed = await showConfirm({
+      title: t('harvest_day'),
+      message: t('confirm_close_day'),
+      confirmText: t('harvest_day'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setLoading(true);
     setCloseError('');
     setClosedReport(null);

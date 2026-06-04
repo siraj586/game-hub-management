@@ -66,7 +66,10 @@ const normalizeResourceUnit = (unit) => ({
 
 const setupStorageKey = (userId) => `gamehub_setup_complete_${userId}`;
 const readSetupComplete = (userId) =>
-  userId ? localStorage.getItem(setupStorageKey(userId)) === 'true' : false;
+  userId
+    ? localStorage.getItem(setupStorageKey(userId)) === 'true' ||
+      localStorage.getItem('gamehub_setup_complete') === 'true'
+    : false;
 
 const rememberRecentUser = (username) => {
   if (!username) return;
@@ -111,6 +114,73 @@ const getListResults = (payload) => {
 const fetchList = async (url, config = {}) => {
   const response = await axios.get(url, config);
   return getListResults(response.data);
+};
+
+const AppDialog = ({ dialog, onResolve, t }) => {
+  useEffect(() => {
+    if (!dialog) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onResolve(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dialog, onResolve]);
+
+  if (!dialog) return null;
+
+  const isDanger = dialog.variant === 'danger';
+  const iconClass = isDanger
+    ? 'fa-triangle-exclamation text-red-500 bg-red-500/10'
+    : 'fa-circle-info text-indigo-500 bg-indigo-500/10';
+  const confirmClass = isDanger
+    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500/40'
+    : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500/40';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-dialog-title"
+        className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl overflow-hidden animate-fade-in-up"
+      >
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ${iconClass}`}>
+              <i className={`fas ${isDanger ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-xl`} />
+            </span>
+            <div className="min-w-0">
+              <h2 id="app-dialog-title" className="text-lg font-black dark:text-white text-gray-900">
+                {dialog.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 dark:text-gray-300 text-gray-600 whitespace-pre-line">
+                {dialog.message}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="px-5 sm:px-6 py-4 bg-gray-50 dark:bg-gray-950/70 border-t border-gray-200 dark:border-gray-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          {dialog.type === 'confirm' && (
+            <button
+              type="button"
+              onClick={() => onResolve(false)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold dark:text-gray-200 text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            >
+              {dialog.cancelText || t('dialog_cancel')}
+            </button>
+          )}
+          <button
+            type="button"
+            autoFocus
+            onClick={() => onResolve(true)}
+            className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-white text-sm font-black transition focus:outline-none focus:ring-4 ${confirmClass}`}
+          >
+            {dialog.confirmText || t('dialog_ok')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const translations = {
@@ -179,9 +249,19 @@ const translations = {
     cost_price: "Cost price",
     min_stock: "Min stock",
     add_item: "Add item",
+    delete_item: "Delete item",
     save_inventory: "Save inventory",
     low_stock: "Low stock",
     inactive: "Inactive",
+    inventory_search_placeholder: "Search items...",
+    inventory_status: "Status",
+    inventory_value: "Value",
+    inventory_all: "All",
+    item_details: "Item Details",
+    activate_item: "Activate",
+    deactivate_item: "Deactivate",
+    select_item_to_edit: "Select an item to edit.",
+    no_inventory_matches: "No inventory items match this filter.",
     paused: "PAUSED",
     open_time: "OPEN TIME",
     est_total: "Est. Total",
@@ -253,6 +333,150 @@ const translations = {
     harvest_day: "Harvest Day",
     harvesting: "Harvesting...",
     confirm_close_day: "Do you want to harvest the day and close the daily report? All current figures will be recorded.",
+    dialog_ok: "OK",
+    dialog_cancel: "Cancel",
+    dialog_notice: "Notice",
+    dialog_error: "Action failed",
+    dialog_confirm_title: "Confirm action",
+    dialog_delete: "Delete",
+    dialog_clear: "Clear",
+    dialog_reset: "Reset",
+    dialog_end: "End Session",
+    dialog_remove: "Remove",
+    confirm_delete_user: "Delete user?",
+    confirm_clear_logs: "Clear all logs permanently?",
+    confirm_delete_session: "Delete this session permanently?",
+    confirm_finalize_session: "Are you sure you want to end this session? This will finalize all costs.",
+    confirm_end_session_now: "End this session now?",
+    confirm_remove_order: "Permanently remove {item} order and restore stock?",
+    confirm_delete_inventory_item: "Delete {item} permanently? Previous sales history will keep the item name, but this product will be removed from inventory.",
+    receipt_image_error: "Could not generate receipt image.",
+    no_completed_today: "No completed sessions today.",
+    select_active_session_first: "Please select an active session first to add this order.",
+    correction_reason_required: "Correction reason is required.",
+    inventory_item_name_required: "Every item needs a name.",
+    settings_subtitle: "Manage center setup, staff, permissions, expenses, and devices.",
+    system_settings: "System Settings",
+    system_settings_subtitle: "Configure the center, POS money rules, monthly costs, and device availability.",
+    tab_system_pos: "System & POS",
+    tab_manage_staff: "Manage Staff",
+    tab_audit_logs: "Audit Logs",
+    settings_empty_devices_title: "Start by adding the game center devices.",
+    settings_empty_devices_hint: "Add PC, PlayStation, or other station types here. Cafe inventory is managed from the POS Sale page.",
+    device_types: "Device Types",
+    configured_play_categories: "Configured play categories",
+    stations: "Stations",
+    stopped_count: "{count} stopped",
+    tracked_cost_types: "Tracked cost types",
+    monthly_expenses_hint: "Enable the cost types you actually track, then enter values at month end.",
+    active_count: "{count} active",
+    expense_electricity: "Electricity",
+    expense_internet: "Internet",
+    expense_rent: "Rent",
+    expense_salaries: "Salaries",
+    expense_maintenance: "Maintenance",
+    expense_other: "Other",
+    month: "Month",
+    notes: "Notes",
+    gaming_devices: "Gaming Devices",
+    gaming_devices_hint: "Define station groups, pricing, and simple active/stopped availability.",
+    add_device: "Add Device",
+    new_device: "New Device",
+    device_type_fallback: "Device Type",
+    remove_device_type: "Remove device type",
+    display_name: "Display Name",
+    prefix: "Prefix",
+    count: "Count",
+    base_price: "Base Price",
+    pricing_strategy: "Pricing Strategy",
+    hourly_rate: "Hourly Rate",
+    fixed_price: "Fixed Price",
+    per_game: "Per Game",
+    station_status: "Station Status",
+    stopped: "Stopped",
+    working: "Working",
+    save_changes: "Save Changes",
+    rerun_setup_confirm: "This will take you back to the Setup Wizard. Continue?",
+    settings_devices_required: "All fields must be filled out for devices.",
+    settings_duplicate_device: "Device ID \"{id}\" is duplicated.",
+    staff_accounts_permissions: "Staff Accounts & Permissions",
+    add_staff_user: "Add Staff User",
+    cancel: "Cancel",
+    username: "Username",
+    password: "Password",
+    create_staff_user: "Create Staff User",
+    saving: "Saving...",
+    save_permissions: "Save Permissions",
+    owner_full_access: "Owner accounts always have full access.",
+    role_owner: "Owner",
+    role_staff: "Staff",
+    perm_group_sessions: "Sessions",
+    perm_group_orders_pos: "Orders & POS",
+    perm_group_reports_inventory: "Reports & Inventory",
+    perm_can_start_session: "Start sessions",
+    perm_can_pause_session: "Pause sessions",
+    perm_can_resume_session: "Resume sessions",
+    perm_can_end_session: "End sessions",
+    perm_can_add_session_order: "Add session orders",
+    perm_can_remove_session_order: "Remove session orders",
+    perm_can_create_standalone_sale: "Create standalone sales",
+    perm_can_apply_discount: "Apply discounts",
+    perm_can_view_shift_report: "View shift reports",
+    perm_can_close_shift: "Close shifts",
+    perm_can_manage_inventory: "Manage inventory",
+    perm_can_update_stock: "Update stock",
+    perm_can_view_audit_logs: "View audit logs",
+    system_activity_logs: "System Activity Logs",
+    clear_all_logs: "Clear All Logs",
+    log_time: "Time",
+    log_user: "User",
+    log_resource: "Resource",
+    log_changes: "Changes",
+    no_activity_logs: "No activity logs found.",
+    audit_logs_hint: "Logs generated automatically whenever pricing or critical settings are updated. Only Owner can clear these logs.",
+    setup_step_devices: "Devices",
+    setup_step_settings: "Settings",
+    setup_step_services: "Services",
+    setup_step_done: "Done",
+    setup_device_title: "What is your shop name and what devices do you have?",
+    setup_device_subtitle: "Enter your shop name to appear in the system and receipts, then add all your gaming stations.",
+    shop_hall_name: "Shop / Hall Name",
+    short_id: "Short ID",
+    station_prefix: "Station Prefix",
+    next_services: "Next: Services",
+    setup_shop_required: "Please enter your shop name.",
+    setup_device_required: "Add at least one device to continue.",
+    setup_fill_device_fields: "Fill all device fields.",
+    setup_duplicate_id: "Duplicate ID: \"{id}\"",
+    core_settings: "Core Settings",
+    core_settings_subtitle: "Set currency and optional monthly expense categories. You can edit these later.",
+    enable_local_currency: "Enable local currency beside USD",
+    currency: "Currency",
+    currency_name: "Currency Name",
+    local_units_per_usd: "Local Units Per 1 USD",
+    monthly_expense_categories: "Monthly Expense Categories",
+    local_currency_required: "Local currency code and name are required.",
+    exchange_rate_required: "Exchange rate must be greater than 0.",
+    back: "Back",
+    cafe_services: "Cafe & Services",
+    cafe_services_subtitle: "Add drinks, snacks, or any extras you sell. You can skip this if you don't have a cafe.",
+    sale_price_short: "Sale $",
+    cost_price_short: "Cost $",
+    stock_quantity: "Stock Quantity",
+    minimum_stock: "Minimum Stock",
+    no_items_yet: "No items yet. Add some or skip to continue.",
+    finish_setup: "Finish Setup",
+    setup_item_name_required: "All items need a name.",
+    setup_price_nonnegative: "Prices must be 0 or more.",
+    setup_stock_nonnegative: "Stock values must be 0 or more.",
+    setup_done_title: "You're all set!",
+    setup_done_summary: "Your hall is configured with {devices} device types and {items} cafe items. You can always change these from Settings.",
+    go_dashboard: "Go to Dashboard",
+    access_denied: "Access Denied",
+    setup_admin_only: "Only administrators can access the setup wizard.",
+    return_to_app: "Return to App",
+    initial_setup: "Initial Setup",
+    initial_setup_subtitle: "Initial Setup - takes less than a minute",
   },
   ar: {
     income_today: "إيرادات اليوم",
@@ -316,9 +540,19 @@ const translations = {
     cost_price: "التكلفة",
     min_stock: "الحد الأدنى",
     add_item: "إضافة صنف",
+    delete_item: "حذف الصنف",
     save_inventory: "حفظ المخزون",
     low_stock: "مخزون منخفض",
     inactive: "غير نشط",
+    inventory_search_placeholder: "ابحث عن منتج...",
+    inventory_status: "الحالة",
+    inventory_value: "القيمة",
+    inventory_all: "الكل",
+    item_details: "تفاصيل الصنف",
+    activate_item: "تفعيل",
+    deactivate_item: "إيقاف",
+    select_item_to_edit: "اختر صنفًا لتعديله.",
+    no_inventory_matches: "لا توجد عناصر تطابق هذا الفلتر.",
     paused: "مؤقت",
     open_time: "وقت مفتوح",
     est_total: "المجموع المقدر",
@@ -390,6 +624,150 @@ const translations = {
     harvest_day: "حصاد اليوم",
     harvesting: "جاري الحصاد...",
     confirm_close_day: "هل تريد حصاد اليوم وإغلاق التقرير اليومي؟ سيتم تسجيل جميع الأرقام الحالية.",
+    dialog_ok: "حسنًا",
+    dialog_cancel: "إلغاء",
+    dialog_notice: "تنبيه",
+    dialog_error: "تعذر تنفيذ العملية",
+    dialog_confirm_title: "تأكيد العملية",
+    dialog_delete: "حذف",
+    dialog_clear: "مسح",
+    dialog_reset: "إعادة ضبط",
+    dialog_end: "إنهاء الجلسة",
+    dialog_remove: "إزالة",
+    confirm_delete_user: "هل تريد حذف المستخدم؟",
+    confirm_clear_logs: "هل تريد مسح كل السجلات نهائيًا؟",
+    confirm_delete_session: "هل تريد حذف هذه الجلسة نهائيًا؟",
+    confirm_finalize_session: "هل أنت متأكد من إنهاء هذه الجلسة؟ سيتم تثبيت كل التكاليف.",
+    confirm_end_session_now: "هل تريد إنهاء هذه الجلسة الآن؟",
+    confirm_remove_order: "هل تريد إزالة طلب {item} نهائيًا وإرجاع الكمية إلى المخزون؟",
+    confirm_delete_inventory_item: "هل تريد حذف {item} نهائيًا؟ سيبقى اسم الصنف في المبيعات السابقة، لكن ستتم إزالته من المخزون.",
+    receipt_image_error: "تعذر إنشاء صورة الإيصال.",
+    no_completed_today: "لا توجد جلسات مكتملة اليوم.",
+    select_active_session_first: "يرجى اختيار جلسة نشطة أولًا لإضافة هذا الطلب.",
+    correction_reason_required: "سبب التصحيح مطلوب.",
+    inventory_item_name_required: "كل عنصر يحتاج اسمًا.",
+    settings_subtitle: "إدارة إعدادات الصالة والموظفين والصلاحيات والمصاريف والأجهزة.",
+    system_settings: "إعدادات النظام",
+    system_settings_subtitle: "ضبط الصالة وقواعد البيع والمصاريف الشهرية وتوفر الأجهزة.",
+    tab_system_pos: "النظام والبيع",
+    tab_manage_staff: "إدارة الموظفين",
+    tab_audit_logs: "سجل النشاطات",
+    settings_empty_devices_title: "ابدأ بإضافة أجهزة مركز الألعاب.",
+    settings_empty_devices_hint: "أضف أجهزة الكمبيوتر أو البلايستيشن أو أي نوع محطات آخر هنا. تتم إدارة مخزون الكافيه من صفحة البيع.",
+    device_types: "أنواع الأجهزة",
+    configured_play_categories: "فئات اللعب المعرّفة",
+    stations: "المحطات",
+    stopped_count: "{count} متوقفة",
+    tracked_cost_types: "أنواع التكاليف المتابعة",
+    monthly_expenses_hint: "فعّل أنواع التكاليف التي تتابعها فعليًا، ثم أدخل قيمها عند نهاية الشهر.",
+    active_count: "{count} مفعّل",
+    expense_electricity: "الكهرباء",
+    expense_internet: "الإنترنت",
+    expense_rent: "الإيجار",
+    expense_salaries: "الرواتب",
+    expense_maintenance: "الصيانة",
+    expense_other: "أخرى",
+    month: "الشهر",
+    notes: "ملاحظات",
+    gaming_devices: "أجهزة الألعاب",
+    gaming_devices_hint: "عرّف مجموعات المحطات والتسعير وحالة التوفر بشكل بسيط.",
+    add_device: "إضافة جهاز",
+    new_device: "جهاز جديد",
+    device_type_fallback: "نوع الجهاز",
+    remove_device_type: "حذف نوع الجهاز",
+    display_name: "الاسم الظاهر",
+    prefix: "البادئة",
+    count: "العدد",
+    base_price: "السعر الأساسي",
+    pricing_strategy: "نظام التسعير",
+    hourly_rate: "سعر بالساعة",
+    fixed_price: "سعر ثابت",
+    per_game: "لكل لعبة",
+    station_status: "حالة المحطة",
+    stopped: "متوقف",
+    working: "يعمل",
+    save_changes: "حفظ التغييرات",
+    rerun_setup_confirm: "سيتم نقلك إلى معالج الإعداد من جديد. هل تريد المتابعة؟",
+    settings_devices_required: "يجب تعبئة جميع حقول الأجهزة.",
+    settings_duplicate_device: "معرّف الجهاز \"{id}\" مكرر.",
+    staff_accounts_permissions: "حسابات الموظفين والصلاحيات",
+    add_staff_user: "إضافة موظف",
+    cancel: "إلغاء",
+    username: "اسم المستخدم",
+    password: "كلمة المرور",
+    create_staff_user: "إنشاء حساب موظف",
+    saving: "جار الحفظ...",
+    save_permissions: "حفظ الصلاحيات",
+    owner_full_access: "حسابات المالك لديها صلاحية كاملة دائمًا.",
+    role_owner: "مالك",
+    role_staff: "موظف",
+    perm_group_sessions: "الجلسات",
+    perm_group_orders_pos: "الطلبات والبيع",
+    perm_group_reports_inventory: "التقارير والمخزون",
+    perm_can_start_session: "بدء الجلسات",
+    perm_can_pause_session: "إيقاف الجلسات مؤقتًا",
+    perm_can_resume_session: "استئناف الجلسات",
+    perm_can_end_session: "إنهاء الجلسات",
+    perm_can_add_session_order: "إضافة طلبات للجلسة",
+    perm_can_remove_session_order: "حذف طلبات من الجلسة",
+    perm_can_create_standalone_sale: "إنشاء بيع مباشر",
+    perm_can_apply_discount: "تطبيق الخصومات",
+    perm_can_view_shift_report: "عرض تقارير الوردية",
+    perm_can_close_shift: "إغلاق الورديات",
+    perm_can_manage_inventory: "إدارة المخزون",
+    perm_can_update_stock: "تحديث الكمية",
+    perm_can_view_audit_logs: "عرض سجل النشاطات",
+    system_activity_logs: "سجل نشاطات النظام",
+    clear_all_logs: "مسح كل السجلات",
+    log_time: "الوقت",
+    log_user: "المستخدم",
+    log_resource: "المورد",
+    log_changes: "التغييرات",
+    no_activity_logs: "لا توجد سجلات نشاط.",
+    audit_logs_hint: "يتم إنشاء السجلات تلقائيًا عند تحديث التسعير أو الإعدادات الحساسة. يمكن للمالك فقط مسح هذه السجلات.",
+    setup_step_devices: "الأجهزة",
+    setup_step_settings: "الإعدادات",
+    setup_step_services: "الخدمات",
+    setup_step_done: "تم",
+    setup_device_title: "ما هو اسم محلك وما هي الأجهزة المتوفرة؟",
+    setup_device_subtitle: "أدخل اسم المحل ليظهر في النظام والفواتير، ثم أضف كل أجهزة اللعب.",
+    shop_hall_name: "اسم المحل / الصالة",
+    short_id: "المعرّف المختصر",
+    station_prefix: "بادئة المحطة",
+    next_services: "التالي: الخدمات",
+    setup_shop_required: "يرجى إدخال اسم المحل.",
+    setup_device_required: "أضف جهازًا واحدًا على الأقل للمتابعة.",
+    setup_fill_device_fields: "يرجى تعبئة جميع حقول الجهاز.",
+    setup_duplicate_id: "المعرّف مكرر: \"{id}\"",
+    core_settings: "الإعدادات الأساسية",
+    core_settings_subtitle: "اضبط العملة وفئات المصاريف الشهرية الاختيارية. يمكنك تعديلها لاحقًا.",
+    enable_local_currency: "تفعيل عملة محلية بجانب الدولار",
+    currency: "العملة",
+    currency_name: "اسم العملة",
+    local_units_per_usd: "عدد وحدات العملة المحلية لكل 1 دولار",
+    monthly_expense_categories: "فئات المصاريف الشهرية",
+    local_currency_required: "رمز العملة المحلية واسمها مطلوبان.",
+    exchange_rate_required: "يجب أن يكون سعر الصرف أكبر من 0.",
+    back: "رجوع",
+    cafe_services: "الكافيه والخدمات",
+    cafe_services_subtitle: "أضف المشروبات أو الوجبات أو أي إضافات تبيعها. يمكنك تخطي هذه الخطوة إذا لم يكن لديك كافيه.",
+    sale_price_short: "سعر البيع",
+    cost_price_short: "التكلفة",
+    stock_quantity: "كمية المخزون",
+    minimum_stock: "الحد الأدنى للمخزون",
+    no_items_yet: "لا توجد عناصر بعد. أضف عناصر أو تخطَّ للمتابعة.",
+    finish_setup: "إنهاء الإعداد",
+    setup_item_name_required: "كل العناصر تحتاج اسمًا.",
+    setup_price_nonnegative: "يجب أن تكون الأسعار 0 أو أكثر.",
+    setup_stock_nonnegative: "يجب أن تكون قيم المخزون 0 أو أكثر.",
+    setup_done_title: "كل شيء جاهز!",
+    setup_done_summary: "تم إعداد الصالة مع {devices} أنواع أجهزة و {items} عناصر كافيه. يمكنك تعديل ذلك دائمًا من الإعدادات.",
+    go_dashboard: "الانتقال إلى لوحة التحكم",
+    access_denied: "تم رفض الوصول",
+    setup_admin_only: "يمكن للمسؤولين فقط الوصول إلى معالج الإعداد.",
+    return_to_app: "العودة إلى التطبيق",
+    initial_setup: "الإعداد الأولي",
+    initial_setup_subtitle: "الإعداد الأولي - يستغرق أقل من دقيقة",
   }
 };
 
@@ -420,6 +798,7 @@ export const AppProvider = ({ children }) => {
     needs_setup: false,
     shop_name: '',
   });
+  const [dialog, setDialog] = useState(null);
 
   const applyAuthSession = async (authPayload) => {
     const token = authPayload.token;
@@ -601,6 +980,44 @@ export const AppProvider = ({ children }) => {
 
   const toggleLanguage = () => setLanguage(prev => prev === 'en' ? 'ar' : 'en');
 
+  const t = useCallback((key) => {
+    return translations[language]?.[key] || translations['en']?.[key] || key;
+  }, [language]);
+
+  const resolveDialog = useCallback((result) => {
+    setDialog(current => {
+      if (current?.resolve) current.resolve(result);
+      return null;
+    });
+  }, []);
+
+  const showAlert = useCallback((message, options = {}) => (
+    new Promise(resolve => {
+      setDialog({
+        type: 'alert',
+        title: options.title || t('dialog_notice'),
+        message,
+        confirmText: options.confirmText || t('dialog_ok'),
+        variant: options.variant || 'info',
+        resolve,
+      });
+    })
+  ), [t]);
+
+  const showConfirm = useCallback((options = {}) => (
+    new Promise(resolve => {
+      setDialog({
+        type: 'confirm',
+        title: options.title || t('dialog_confirm_title'),
+        message: options.message || '',
+        confirmText: options.confirmText,
+        cancelText: options.cancelText || t('dialog_cancel'),
+        variant: options.variant || 'info',
+        resolve,
+      });
+    })
+  ), [t]);
+
   const login = async (username, password) => {
     try {
       const res = await axios.post('/auth/login/', { username, password });
@@ -641,7 +1058,7 @@ export const AppProvider = ({ children }) => {
       await fetchData();
       return { success: true, data: response.data };
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error processing sale'));
+      await showAlert(apiErrorMessage(e, 'Error processing sale'), { title: t('dialog_error'), variant: 'danger' });
       return { success: false };
     }
   };
@@ -664,7 +1081,7 @@ export const AppProvider = ({ children }) => {
       await fetchData();
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error adding user'));
+      await showAlert(apiErrorMessage(e, 'Error adding user'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
@@ -675,26 +1092,40 @@ export const AppProvider = ({ children }) => {
       await fetchData();
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error updating user'));
+      await showAlert(apiErrorMessage(e, 'Error updating user'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
 
   const deleteUser = async (id) => {
-    if (window.confirm("Delete user?")) {
-      try {
-        await axios.delete(`/users/${id}/`);
-        await fetchData();
-      } catch (e) { alert(apiErrorMessage(e, 'Error deleting user')); }
+    const confirmed = await showConfirm({
+      title: t('dialog_delete'),
+      message: t('confirm_delete_user'),
+      confirmText: t('dialog_delete'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await axios.delete(`/users/${id}/`);
+      await fetchData();
+    } catch (e) {
+      await showAlert(apiErrorMessage(e, 'Error deleting user'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
   const clearAuditLogs = async () => {
-    if (window.confirm("Clear all logs permanently?")) {
-      try {
-        await axios.post('/audit-logs/clear_logs/');
-        setAuditLogs([]);
-      } catch (e) { alert(apiErrorMessage(e, 'Error clearing logs')); }
+    const confirmed = await showConfirm({
+      title: t('dialog_clear'),
+      message: t('confirm_clear_logs'),
+      confirmText: t('dialog_clear'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await axios.post('/audit-logs/clear_logs/');
+      setAuditLogs([]);
+    } catch (e) {
+      await showAlert(apiErrorMessage(e, 'Error clearing logs'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -737,6 +1168,7 @@ export const AppProvider = ({ children }) => {
     if (currentUser?.id) {
       localStorage.removeItem(setupStorageKey(currentUser.id));
     }
+    localStorage.removeItem('gamehub_setup_complete');
     setHasCompletedSetup(false);
   };
 
@@ -744,6 +1176,7 @@ export const AppProvider = ({ children }) => {
     if (currentUser?.id) {
       localStorage.setItem(setupStorageKey(currentUser.id), 'true');
     }
+    localStorage.setItem('gamehub_setup_complete', 'true');
     setHasCompletedSetup(true);
   };
 
@@ -757,7 +1190,7 @@ export const AppProvider = ({ children }) => {
       const res = await axios.post('/sessions/', sessionData);
       setSessions(prev => [normalizeSession(res.data), ...prev]);
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error starting session'));
+      await showAlert(apiErrorMessage(e, 'Error starting session'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -767,18 +1200,23 @@ export const AppProvider = ({ children }) => {
       // Update local state smoothly
       setSessions(prev => prev.map(s => s.id === sessionId ? normalizeSession(res.data) : s));
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error ending session'));
+      await showAlert(apiErrorMessage(e, 'Error ending session'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
   const deleteSession = async (sessionId) => {
-    if (window.confirm("Delete this session permanently?")) {
-      try {
-        await axios.delete(`/sessions/${sessionId}/`);
-        setSessions(prev => prev.filter(s => s.id !== sessionId));
-      } catch (e) {
-        alert(apiErrorMessage(e, 'Error deleting session'));
-      }
+    const confirmed = await showConfirm({
+      title: t('dialog_delete'),
+      message: t('confirm_delete_session'),
+      confirmText: t('dialog_delete'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      await axios.delete(`/sessions/${sessionId}/`);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (e) {
+      await showAlert(apiErrorMessage(e, 'Error deleting session'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -788,7 +1226,7 @@ export const AppProvider = ({ children }) => {
       const res = await axios.post(`/sessions/${session.id}/${action}/`);
       setSessions(prev => prev.map(s => s.id === session.id ? normalizeSession(res.data) : s));
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error pausing/resuming session'));
+      await showAlert(apiErrorMessage(e, 'Error pausing/resuming session'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -806,7 +1244,7 @@ export const AppProvider = ({ children }) => {
       const mappedCafe = itemList.map(item => normalizeCafeItem(item, currencySettings));
       setCafeItems(mappedCafe);
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error adding order'));
+      await showAlert(apiErrorMessage(e, 'Error adding order'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -819,7 +1257,7 @@ export const AppProvider = ({ children }) => {
       const mappedCafe = itemList.map(item => normalizeCafeItem(item, currencySettings));
       setCafeItems(mappedCafe);
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error removing order'));
+      await showAlert(apiErrorMessage(e, 'Error removing order'), { title: t('dialog_error'), variant: 'danger' });
     }
   };
 
@@ -897,8 +1335,10 @@ export const AppProvider = ({ children }) => {
       setSystemName(centerName);
       localStorage.setItem('gamehub_system_name', centerName);
       await fetchData();
+      return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error saving settings'));
+      await showAlert(apiErrorMessage(e, 'Error saving settings'), { title: t('dialog_error'), variant: 'danger' });
+      return false;
     }
   };
 
@@ -924,7 +1364,7 @@ export const AppProvider = ({ children }) => {
               cost_price_currency: item.cost_currency || item.original_cost_currency || 'USD',
               quantity_in_stock: item.stock ?? 0,
               minimum_stock_level: item.minStock ?? 0,
-              is_active: item.isActive !== false,
+              is_active: item.id ? item.isActive !== false : true,
               category: cafeCategory.id,
             }
           : { quantity_in_stock: item.stock ?? 0 };
@@ -939,7 +1379,30 @@ export const AppProvider = ({ children }) => {
       await fetchData();
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error saving inventory'));
+      await showAlert(apiErrorMessage(e, 'Error saving inventory'), { title: t('dialog_error'), variant: 'danger' });
+      return false;
+    }
+  };
+
+  const deleteInventoryItem = async (item) => {
+    if (!item) return false;
+    const itemName = item.name || t('item_name');
+    const confirmed = await showConfirm({
+      title: t('dialog_delete'),
+      message: t('confirm_delete_inventory_item').replace('{item}', itemName),
+      confirmText: t('dialog_delete'),
+      variant: 'danger',
+    });
+    if (!confirmed) return false;
+    if (!item.id) return true;
+
+    try {
+      await axios.delete(`/inventory-items/${item.id}/`);
+      setCafeItems(prev => prev.filter(existing => existing.id !== item.id));
+      await fetchData();
+      return true;
+    } catch (e) {
+      await showAlert(apiErrorMessage(e, 'Error deleting inventory item'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
@@ -950,7 +1413,7 @@ export const AppProvider = ({ children }) => {
       setMonthlyExpenseSettings(res.data || {});
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error saving monthly expense settings'));
+      await showAlert(apiErrorMessage(e, 'Error saving monthly expense settings'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
@@ -964,7 +1427,7 @@ export const AppProvider = ({ children }) => {
       });
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error saving monthly expenses'));
+      await showAlert(apiErrorMessage(e, 'Error saving monthly expenses'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
@@ -976,7 +1439,7 @@ export const AppProvider = ({ children }) => {
       await fetchData();
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error saving currency settings'));
+      await showAlert(apiErrorMessage(e, 'Error saving currency settings'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
@@ -990,15 +1453,18 @@ export const AppProvider = ({ children }) => {
       await checkAutoEnd();
       return true;
     } catch (e) {
-      alert(apiErrorMessage(e, 'Error correcting session'));
+      await showAlert(apiErrorMessage(e, 'Error correcting session'), { title: t('dialog_error'), variant: 'danger' });
       return false;
     }
   };
 
-  const exportDailyReport = () => {
+  const exportDailyReport = async () => {
     const todayStr = new Date().toDateString();
     const todaysCompleted = sessions.filter(s => s.endTime && new Date(s.endTime).toDateString() === todayStr);
-    if (todaysCompleted.length === 0) { alert("No completed sessions today."); return; }
+    if (todaysCompleted.length === 0) {
+      await showAlert(t('no_completed_today'));
+      return;
+    }
     const headers = ["Session ID", "Customer", "Station", "Start", "End", "Duration", "Earnings"];
     const rows = todaysCompleted.map(s => [
       s.id, s.name, s.resourceId || s.stationId,
@@ -1016,10 +1482,6 @@ export const AppProvider = ({ children }) => {
     URL.revokeObjectURL(link.href);
   };
 
-  const t = (key) => {
-    return translations[language]?.[key] || translations['en']?.[key] || key;
-  };
-
   return (
     <AppContext.Provider value={{
       sessions, devices, cafeItems, analytics, darkMode, isAuthenticated, hasCompletedSetup,
@@ -1029,9 +1491,11 @@ export const AppProvider = ({ children }) => {
       addSession, endSession, deleteSession, togglePauseSession,
       addOrderToSession, removeOrderFromSession, checkAutoEnd, saveSettings, exportDailyReport,
       saveMonthlyExpenseSettings, saveMonthlyExpense, saveCurrencySettings, correctSession,
-      saveInventoryItems, isStationActive, makeDirectSale, closeDayReport, addUser, updateUser, deleteUser, clearAuditLogs, t
+      saveInventoryItems, deleteInventoryItem, isStationActive, makeDirectSale, closeDayReport, addUser, updateUser, deleteUser, clearAuditLogs,
+      showAlert, showConfirm, t
     }}>
       {children}
+      <AppDialog dialog={dialog} onResolve={resolveDialog} t={t} />
     </AppContext.Provider>
   );
 };

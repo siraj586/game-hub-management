@@ -33,7 +33,9 @@ const InventoryManager = ({ embedded = false }) => {
     currencySettings,
     currentUser,
     permissions,
+    deleteInventoryItem,
     saveInventoryItems,
+    showAlert,
     t,
   } = useApp();
   const [items, setItems] = useState([]);
@@ -100,6 +102,17 @@ const InventoryManager = ({ embedded = false }) => {
     ));
   };
 
+  const removeSelectedItem = async () => {
+    if (!canEditCatalog || !selectedItem) return;
+    const ok = await deleteInventoryItem(selectedItem);
+    if (!ok) return;
+    setItems(prev => {
+      const next = prev.filter((_, index) => index !== selectedIndex);
+      setSelectedIndex(Math.min(selectedIndex, Math.max(0, next.length - 1)));
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     const cleaned = items.map(item => ({
       ...item,
@@ -111,7 +124,7 @@ const InventoryManager = ({ embedded = false }) => {
     }));
 
     if (canEditCatalog && cleaned.some(item => !item.name)) {
-      alert('Every item needs a name.');
+      await showAlert(t('inventory_item_name_required'));
       return;
     }
 
@@ -168,7 +181,7 @@ const InventoryManager = ({ embedded = false }) => {
           </p>
         </div>
         <div className="rounded-xl border dark:border-gray-700 border-gray-200 bg-white dark:bg-gray-800 p-4">
-          <p className="text-[11px] uppercase font-bold text-gray-400">Value</p>
+          <p className="text-[11px] uppercase font-bold text-gray-400">{t('inventory_value')}</p>
           <p className="text-2xl font-black dark:text-white text-gray-800">
             {formatCurrencyAmount(inventoryValue, 'USD')}
           </p>
@@ -182,7 +195,7 @@ const InventoryManager = ({ embedded = false }) => {
               type="search"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Search items..."
+              placeholder={t('inventory_search_placeholder')}
               className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border text-sm dark:bg-gray-900 bg-gray-50 dark:border-gray-700 border-gray-200 dark:text-white"
             />
             <select
@@ -190,8 +203,8 @@ const InventoryManager = ({ embedded = false }) => {
               onChange={event => setStatusFilter(event.target.value)}
               className="px-3 py-2 rounded-lg border text-sm dark:bg-gray-900 bg-gray-50 dark:border-gray-700 border-gray-200 dark:text-white"
             >
-              <option value="all">All</option>
-              <option value="active">Active</option>
+              <option value="all">{t('inventory_all')}</option>
+              <option value="active">{t('active')}</option>
               <option value="low">{t('low_stock')}</option>
               <option value="inactive">{t('inactive')}</option>
             </select>
@@ -205,7 +218,7 @@ const InventoryManager = ({ embedded = false }) => {
                   <th className="text-right px-4 py-3">{t('sale_price')}</th>
                   <th className="text-right px-4 py-3">{t('stock')}</th>
                   <th className="text-right px-4 py-3">{t('min_stock')}</th>
-                  <th className="text-right px-4 py-3">Status</th>
+                  <th className="text-right px-4 py-3">{t('inventory_status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-gray-700 divide-gray-100">
@@ -245,7 +258,7 @@ const InventoryManager = ({ embedded = false }) => {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
-                      No inventory items match this filter.
+                      {t('no_inventory_matches')}
                     </td>
                   </tr>
                 )}
@@ -256,19 +269,29 @@ const InventoryManager = ({ embedded = false }) => {
 
         <aside className="rounded-xl border dark:border-gray-700 border-gray-200 bg-white dark:bg-gray-800 p-4 h-fit">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-black dark:text-white text-gray-800">Item Details</h3>
+            <h3 className="font-black dark:text-white text-gray-800">{t('item_details')}</h3>
             {selectedItem && canEditCatalog && (
-              <button
-                type="button"
-                onClick={() => toggleActive(selectedIndex)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                  selectedItem.isActive === false
-                    ? 'bg-emerald-500/10 text-emerald-600'
-                    : 'bg-gray-500/10 text-gray-500'
-                }`}
-              >
-                {selectedItem.isActive === false ? 'Activate' : 'Deactivate'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleActive(selectedIndex)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                    selectedItem.isActive === false
+                      ? 'bg-emerald-500/10 text-emerald-600'
+                      : 'bg-gray-500/10 text-gray-500'
+                  }`}
+                >
+                  {selectedItem.isActive === false ? t('activate_item') : t('deactivate_item')}
+                </button>
+                <button
+                  type="button"
+                  onClick={removeSelectedItem}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition"
+                >
+                  <i className="fas fa-trash mr-1" />
+                  {t('delete_item')}
+                </button>
+              </div>
             )}
           </div>
 
@@ -377,7 +400,7 @@ const InventoryManager = ({ embedded = false }) => {
               </button>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Select an item to edit.</p>
+            <p className="text-sm text-gray-400">{t('select_item_to_edit')}</p>
           )}
         </aside>
       </div>

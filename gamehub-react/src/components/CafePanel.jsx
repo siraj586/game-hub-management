@@ -4,7 +4,7 @@ import StandaloneSaleModal from './StandaloneSaleModal';
 import { hasAnyPermission, hasPermission } from '../utils/permissions';
 
 const CafePanel = () => {
-  const { sessions, cafeItems, addOrderToSession, permissions, t } = useApp();
+  const { sessions, cafeItems, addOrderToSession, permissions, showAlert, t } = useApp();
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [isQuickSellOpen, setIsQuickSellOpen] = useState(false);
 
@@ -21,10 +21,10 @@ const CafePanel = () => {
   const activeCafeItems = cafeItems.filter(item => item.isActive !== false);
   const lowStockItems = activeCafeItems.filter(item => item.lowStock);
 
-  const handleItemClick = (item) => {
+  const handleItemClick = async (item) => {
     if (!canAddSessionOrder) return;
     if (!selectedSessionId) {
-      alert("Please select an active session first to add this order.");
+      await showAlert(t('select_active_session_first'));
       return;
     }
     // API expects: sessionId, inventoryItemId, itemName, itemPrice, quantity

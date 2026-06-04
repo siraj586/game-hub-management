@@ -6,12 +6,18 @@ import {
   isOwnerUser,
 } from '../utils/permissions';
 
-const PermissionGrid = ({ value, onChange, disabled = false }) => (
+const permissionGroupKey = (title) => ({
+  Sessions: 'perm_group_sessions',
+  'Orders & POS': 'perm_group_orders_pos',
+  'Reports & Inventory': 'perm_group_reports_inventory',
+}[title] || title);
+
+const PermissionGrid = ({ value, onChange, disabled = false, t }) => (
   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
     {STAFF_PERMISSION_GROUPS.map(group => (
       <fieldset key={group.title} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
         <legend className="px-1 text-[11px] font-black uppercase tracking-widest text-gray-500">
-          {group.title}
+          {t(permissionGroupKey(group.title))}
         </legend>
         <div className="mt-2 space-y-2">
           {group.permissions.map(([key, label]) => (
@@ -23,7 +29,7 @@ const PermissionGrid = ({ value, onChange, disabled = false }) => (
                 onChange={e => onChange(key, e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span>{label}</span>
+              <span>{t(`perm_${key}`) || label}</span>
             </label>
           ))}
         </div>
@@ -33,7 +39,7 @@ const PermissionGrid = ({ value, onChange, disabled = false }) => (
 );
 
 const UserManagement = () => {
-  const { users, addUser, updateUser, deleteUser } = useApp();
+  const { users, currentUser, addUser, updateUser, deleteUser, t } = useApp();
   const [isAdding, setIsAdding] = useState(false);
   const [savingUserId, setSavingUserId] = useState(null);
   const [permissionDrafts, setPermissionDrafts] = useState({});
@@ -83,15 +89,21 @@ const UserManagement = () => {
     setSavingUserId(null);
   };
 
+  const roleLabel = (user) => {
+    if (isOwnerUser(user)) return t('role_owner');
+    if (user.role === 'STAFF') return t('role_staff');
+    return user.role;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold dark:text-white text-gray-800">Staff Accounts & Permissions</h3>
+        <h3 className="text-lg font-bold dark:text-white text-gray-800">{t('staff_accounts_permissions')}</h3>
         <button
           onClick={() => setIsAdding(!isAdding)}
           className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition"
         >
-          {isAdding ? 'Cancel' : 'Add Staff User'}
+          {isAdding ? t('cancel') : t('add_staff_user')}
         </button>
       </div>
 
@@ -99,7 +111,7 @@ const UserManagement = () => {
         <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-indigo-500/30 space-y-4 animate-fade-in-up">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Username</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t('username')}</label>
               <input
                 type="text"
                 required
@@ -109,7 +121,7 @@ const UserManagement = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Password</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t('password')}</label>
               <input
                 type="password"
                 required
@@ -119,9 +131,9 @@ const UserManagement = () => {
               />
             </div>
           </div>
-          <PermissionGrid value={formData.permissions} onChange={updateFormPermission} />
+          <PermissionGrid value={formData.permissions} onChange={updateFormPermission} t={t} />
           <button type="submit" className="w-full py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">
-            Create Staff User
+            {t('create_staff_user')}
           </button>
         </form>
       )}
@@ -136,7 +148,7 @@ const UserManagement = () => {
                 <div>
                   <p className="font-bold dark:text-white text-gray-800">{user.username}</p>
                   <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${owner ? 'bg-purple-500/20 text-purple-500' : 'bg-gray-500/20 text-gray-400'}`}>
-                    {user.role}
+                    {roleLabel(user)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -146,12 +158,14 @@ const UserManagement = () => {
                       disabled={savingUserId === user.id}
                       className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      {savingUserId === user.id ? 'Saving...' : 'Save Permissions'}
+                      {savingUserId === user.id ? t('saving') : t('save_permissions')}
                     </button>
                   )}
-                  <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:text-red-600 p-2">
-                    <i className="fas fa-trash"></i>
-                  </button>
+                  {!owner && user.id !== currentUser?.id && (
+                    <button onClick={() => deleteUser(user.id)} className="text-red-400 hover:text-red-600 p-2">
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -163,10 +177,11 @@ const UserManagement = () => {
                     ...(permissionDrafts[user.id] || {}),
                   }}
                   onChange={(key, checked) => updateDraftPermission(user.id, key, checked)}
+                  t={t}
                 />
               ) : (
                 <div className="text-xs text-gray-500 dark:text-gray-400 rounded-lg bg-gray-50 dark:bg-gray-900/50 p-3">
-                  Owner accounts always have full access.
+                  {t('owner_full_access')}
                 </div>
               )}
             </div>
