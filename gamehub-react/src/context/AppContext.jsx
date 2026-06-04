@@ -81,11 +81,14 @@ const rememberRecentUser = (username) => {
 /** Wipe browser-side session data (tokens, setup flags, cached names). */
 export const clearLocalAppData = ({ keepPreferences = true } = {}) => {
   Object.keys(localStorage).forEach((key) => {
+    // Preserve per-user setup completion flags so logout doesn't remove
+    // the client-side marker (server-side initialization is authoritative).
+    if (key.startsWith('gamehub_setup_complete_')) return;
     if (!key.startsWith('gamehub_') && key !== 'gamehub_setup_complete') return;
     if (keepPreferences && key === 'gamehub_language') return;
     localStorage.removeItem(key);
   });
-  localStorage.removeItem('gamehub_setup_complete');
+  // keep the legacy single key if present; do not force-remove it here
   delete axios.defaults.headers.common['Authorization'];
 };
 
@@ -434,7 +437,14 @@ export const AppProvider = ({ children }) => {
       setSystemName(authPayload.shop_name);
       localStorage.setItem('gamehub_system_name', authPayload.shop_name);
     }
-    setHasCompletedSetup(readSetupComplete(userId));
+    // Prefer server-side bootstrap status as the source of truth.
+    try {
+      const status = await fetchBootstrapStatus();
+      setHasCompletedSetup(!status.needs_setup);
+    } catch {
+      // Fallback to client-side marker if status fetch fails
+      setHasCompletedSetup(readSetupComplete(userId));
+    }
     rememberRecentUser(authPayload.username);
     await fetchData();
   };
