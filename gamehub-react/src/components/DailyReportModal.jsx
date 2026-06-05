@@ -1,14 +1,58 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatMoney } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
+import axios from 'axios';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const DailyReportModal = ({ isOpen, onClose }) => {
-  const { analytics, sessions, cafeItems, closeDayReport, permissions, showConfirm, t } = useApp();
+  const { analytics, sessions, cafeItems, monthlyExpenses, closeDayReport, permissions, showConfirm, showAlert, checkAutoEnd, fetchData, t } = useApp();
   const [loading, setLoading] = useState(false);
   const [closedReport, setClosedReport] = useState(null);
   const [closeError, setCloseError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const isFinalizingRef = useRef(false);
+
+  const finalizeHarvest = useCallback(async (reportId = null) => {
+    if (isFinalizingRef.current) return { success: false, error: 'Already finalizing' };
+    isFinalizingRef.current = true;
+    setLoading(true);
+    setCloseError('');
+    setClosedReport(null);
+    try {
+      const result = await closeDayReport(selectedDate);
+      setLoading(false);
+      if (result.success) {
+        setClosedReport(result.data);
+        return { success: true, data: result.data };
+      }
+      setCloseError(result.error);
+      return { success: false, error: result.error };
+    } catch (e) {
+      const msg = e?.message || String(e);
+      setCloseError(msg);
+      return { success: false, error: msg };
+    } finally {
+      isFinalizingRef.current = false;
+    }
+  }, [closeDayReport, selectedDate]);
+
+  const toSafeText = (value) => {
+    const safe = (v) => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+      try {
+        const s = JSON.stringify(v);
+        return s.length > 300 ? s.slice(0, 300) + '...' : s;
+      } catch {
+        return String(v);
+      }
+    };
+    if (Array.isArray(value)) return value.map(safe);
+    return safe(value);
+  };
 
   if (!isOpen) return null;
   const canCloseShift = hasPermission(permissions, 'can_close_shift');
@@ -26,15 +70,271 @@ const DailyReportModal = ({ isOpen, onClose }) => {
       variant: 'danger',
     });
     if (!confirmed) return;
-    setLoading(true);
-    setCloseError('');
-    setClosedReport(null);
-    const result = await closeDayReport(selectedDate);
-    setLoading(false);
-    if (result.success) {
-      setClosedReport(result.data);
-    } else {
-      setCloseError(result.error);
+    // collect today's data
+    const todays = sessions.filter(s => s.endTime && new Date(s.endTime).toISOString().slice(0, 10) === selectedDate);
+    if (!todays || todays.length === 0) {
+      if (showAlert) await showAlert(t('no_completed_today'));
+      return;
+    }
+
+    const todaysOrders = todays.flatMap(s => (s.orders || []).map(o => ({ sessionId: s.id, ...o })));
+    const totalPlay = todays.reduce((sum, s) => sum + ((s.finalTotal ?? s.totalCost) - (s.ordersCost || 0)), 0);
+    const totalCafe = todays.reduce((sum, s) => sum + (s.ordersCost || 0), 0);
+    // Fetch extra system data to include in the daily report
+    let standaloneSales = [];
+    let payments = [];
+    let todaysAuditLogs = [];
+    try {
+      const salesRes = await axios.get('/sales/', { params: { page_size: 200 } }).catch(() => null);
+      if (salesRes && salesRes.data) standaloneSales = Array.isArray(salesRes.data) ? salesRes.data : (Array.isArray(salesRes.data.results) ? salesRes.data.results : []);
+    } catch {}
+    try {
+      const payRes = await axios.get('/payments/', { params: { page_size: 200 } }).catch(() => null);
+      if (payRes && payRes.data) payments = Array.isArray(payRes.data) ? payRes.data : (Array.isArray(payRes.data.results) ? payRes.data.results : []);
+    } catch {}
+    try {
+      // Use context audit logs as a fallback; fetch fresh list too
+      const auditRes = await axios.get('/audit-logs/', { params: { page_size: 200 } }).catch(() => null);
+      const allLogs = auditRes && auditRes.data ? (Array.isArray(auditRes.data) ? auditRes.data : (Array.isArray(auditRes.data.results) ? auditRes.data.results : [])) : (analytics && analytics.auditLogs ? analytics.auditLogs : []);
+      todaysAuditLogs = allLogs.filter(l => {
+        const d = new Date(l.created_at || l.created || l.timestamp || l.time || l.date || l.createdAt || null);
+        return d && new Date(d).toISOString().slice(0,10) === selectedDate;
+      });
+    } catch {}
+    const reportData = {
+      date: selectedDate,
+      generatedAt: new Date().toISOString(),
+      sessions: todays,
+      orders: todaysOrders,
+      totals: { play: totalPlay, cafe: totalCafe, revenue: totalPlay + totalCafe },
+      analytics: analytics || {},
+    };
+
+    // Generate PDF using jsPDF + autotable
+    try {
+      setLoading(true);
+      // strict safeText helpers
+      const safeText = (value, fallback = '-') => {
+        if (value === null || value === undefined) return fallback;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (value instanceof Date) return value.toLocaleString();
+        if (Array.isArray(value)) {
+          return value
+            .map(item => {
+              if (typeof item === 'string' || typeof item === 'number') return String(item);
+              if (item && typeof item === 'object') {
+                return item.message || item.description || item.name || JSON.stringify(item);
+              }
+              return fallback;
+            })
+            .join('\n');
+        }
+        if (typeof value === 'object') {
+          return value.message || value.description || value.name || JSON.stringify(value);
+        }
+        return fallback;
+      };
+
+      const safeTextBlock = (items, formatter) => {
+        if (!Array.isArray(items) || items.length === 0) return ['No data available'];
+        return items.map((item, index) => safeText(formatter ? formatter(item, index) : item));
+      };
+
+      const docText = (docObj, val, x, y, fallbackX = 14, fallbackY = 20) => {
+        const X = (typeof x === 'number' && !isNaN(x)) ? x : (Number(x) || fallbackX);
+        const Y = (typeof y === 'number' && !isNaN(y)) ? y : (Number(y) || fallbackY);
+        const text = (Array.isArray(val) ? val.map(v => safeText(v)) : safeText(val));
+        try {
+          docObj.text(text, X, Y);
+        } catch (err) {
+          console.error('docText failed for', { text, X, Y }, err);
+          throw err;
+        }
+      };
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      // dynamic vertical position
+      let y = 20;
+      doc.setFontSize(18);
+      docText(doc, t('daily_report_title'), 14, y);
+      y += 10;
+      doc.setFontSize(11);
+      // report subtitle
+      if (y > 260) { doc.addPage(); y = 20; }
+      docText(doc, `${t('daily_report_subtitle')} ${new Date(reportData.date).toDateString()}`, 14, y);
+      y += 8;
+      docText(doc, `Generated: ${new Date(reportData.generatedAt).toLocaleString()}`, 14, y);
+      y += 10;
+
+      // helper to ensure autoTable receives safe startY and string cells
+      const safeAutoTable = (docObj, opts) => {
+        const o = { ...opts };
+        o.startY = (typeof o.startY === 'number' && !isNaN(o.startY)) ? o.startY : (Number(o.startY) || 20);
+        if (o.head && Array.isArray(o.head)) {
+          o.head = o.head.map(r => Array.isArray(r) ? r.map(c => safeText(c)) : r);
+        }
+        if (o.body && Array.isArray(o.body)) {
+          o.body = o.body.map(r => Array.isArray(r) ? r.map(c => safeText(c)) : r);
+        }
+        return docObj.autoTable(o);
+      };
+
+      // Sessions table
+      const sessionHead = [[t('s_id'), t('customer'), t('station'), t('duration'), t('total')]];
+      const sessionBody = reportData.sessions.map(s => [
+        `#${s.id}`,
+        safeText(s.name || '-'),
+        safeText(s.stationId || s.resourceId || '-'),
+        safeText(s.durationMinutes ? `${Math.floor(s.durationMinutes/60)}h ${s.durationMinutes%60}m` : '-'),
+        safeText(formatMoney(s.finalTotal ?? s.totalCost)),
+      ]);
+      const tableRes = safeAutoTable(doc, { startY: y, head: sessionHead, body: sessionBody, styles: { fontSize: 9 } });
+      // advance y after sessions table
+      y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : (tableRes && tableRes.finalY ? tableRes.finalY + 10 : y + 12);
+
+      // Additional sections: per-session products and audit logs
+      doc.setFontSize(11);
+      // per-session product lists
+      for (const s of reportData.sessions) {
+        if (y > 260) { doc.addPage(); y = 20; }
+        docText(doc, `${t('session')} #${String(s.id)} - ${s.name || '-'}`, 14, y);
+        y += 6;
+        const orders = (s.orders || []).map(o => ({
+          name: o.name || o.item_name || o.product || '-',
+          qty: o.quantity || o.qty || 1,
+          unit: o.price || o.unit_price || o.unitPrice || 0,
+        }));
+        if (orders.length > 0) {
+          const ordersHead = [[t('product'), t('quantity'), t('unit_price'), t('total')]];
+          const ordersBody = orders.map(o => [safeText(o.name), safeText(o.qty), safeText(formatMoney(o.unit)), safeText(formatMoney((o.unit || 0) * (o.qty || 1)))]);
+          const ordTable = safeAutoTable(doc, { startY: y, head: ordersHead, body: ordersBody, styles: { fontSize: 9 } });
+          y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 6 : (ordTable && ordTable.finalY ? ordTable.finalY + 6 : y + 8);
+        }
+        // add a small gap
+        y += 4;
+      }
+      // Summary totals (use autoTable)
+      if (y > 260) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      const todaysSales = standaloneSales.filter(s => {
+        const d = new Date(s.created_at || s.created || s.timestamp || s.date || s.createdAt || null);
+        return d && new Date(d).toISOString().slice(0,10) === selectedDate;
+      });
+      const totalStandalone = todaysSales.reduce((sum, x) => sum + (Number(x.total || x.amount || x.price || 0) || 0), 0);
+      const summaryHead = [[t('summary'), t('amount')]];
+      const summaryBody = [
+        [t('total_session_revenue'), safeText(formatMoney(reportData.totals.play))],
+        [t('total_pos_sales'), safeText(formatMoney(totalStandalone))],
+        [t('total_products_in_sessions'), safeText(String(reportData.orders.length))],
+        [t('total_expenses'), safeText(formatMoney((reportData.analytics?.expenses_total) || (monthlyExpenses && monthlyExpenses.reduce ? monthlyExpenses.reduce((s,e)=>s+(Number(e.amount)||0),0):0)))],
+        [t('grand_total_revenue'), safeText(formatMoney(reportData.totals.revenue + totalStandalone))],
+      ];
+      const summaryTable = safeAutoTable(doc, { startY: y, head: summaryHead, body: summaryBody, styles: { fontSize: 10 }, theme: 'grid' });
+      y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 12 : (summaryTable && summaryTable.finalY ? summaryTable.finalY + 12 : y + 12);
+
+      // Audit logs section
+      if (y > 260) { doc.addPage(); y = 20; }
+      doc.setFontSize(14);
+      docText(doc, t('audit_logs'), 14, y);
+      y += 8;
+      doc.setFontSize(10);
+      if (todaysAuditLogs.length > 0) {
+        const logsHead = [[t('time'), t('actor'), t('action')]];
+        const logsBody = todaysAuditLogs.map(l => [
+          safeText(new Date(l.created_at || l.created || l.timestamp || l.time || l.date || l.createdAt || '').toLocaleString()),
+          safeText(l.username || l.actor || l.user || '-'),
+          safeText(l.description || l.message || l.action || JSON.stringify(l).slice(0,80)),
+        ]);
+        const logsTable = safeAutoTable(doc, { startY: y, head: logsHead, body: logsBody, styles: { fontSize: 9 } });
+        y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : (logsTable && logsTable.finalY ? logsTable.finalY + 10 : y + 10);
+      } else {
+        docText(doc, t('no_audit_logs_today') || 'No audit logs for today', 14, y);
+        y += 12;
+      }
+
+      // download the PDF (user copy)
+      const pdfBlob = doc.output('blob');
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `daily-report-${today}.pdf`;
+      doc.save(fileName);
+
+      // try to upload and archive on server (must archive after PDF generated)
+      try {
+        const form = new FormData();
+        form.append('date', selectedDate);
+        form.append('report_file', pdfBlob, fileName);
+        const res = await axios.post('/daily-reports/close_day/', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+        // After archive succeeds, clear today's sessions (daily activity, history, recent activity)
+        try {
+          const ids = todays.map(s => s.id).filter(Boolean);
+          if (ids.length > 0) {
+            await Promise.all(ids.map(id => axios.delete(`/sessions/${id}/`).catch(() => null)));
+          }
+        } catch (delErr) {
+          // ignore individual deletion errors but log
+          console.info('Error deleting todays sessions after archive', delErr?.message || delErr);
+        }
+        // Also clear standalone POS sales for today
+        try {
+          const saleIds = (standaloneSales || []).filter(s => {
+            const d = new Date(s.created_at || s.created || s.timestamp || s.date || s.createdAt || null);
+            return d && new Date(d).toISOString().slice(0,10) === selectedDate;
+          }).map(s => s.id).filter(Boolean);
+          if (saleIds.length > 0) await Promise.all(saleIds.map(id => axios.delete(`/sales/${id}/`).catch(() => null)));
+        } catch (saleErr) {
+          console.info('Error deleting todays standalone sales', saleErr?.message || saleErr);
+        }
+        // Clear payments for today (best-effort)
+        try {
+          const payIds = (payments || []).filter(p => {
+            const d = new Date(p.created_at || p.created || p.timestamp || p.date || p.createdAt || null);
+            return d && new Date(d).toISOString().slice(0,10) === selectedDate;
+          }).map(p => p.id).filter(Boolean);
+          if (payIds.length > 0) await Promise.all(payIds.map(id => axios.delete(`/payments/${id}/`).catch(() => null)));
+        } catch (payErr) {
+          console.info('Error deleting todays payments', payErr?.message || payErr);
+        }
+        // Attempt to clear all audit logs (best-effort)
+        try {
+          await axios.post('/audit-logs/clear_logs/').catch(() => null);
+          try { if (typeof fetchData === 'function') await fetchData(); } catch (_) {}
+        } catch (auditDelErr) {
+          console.info('Error clearing audit logs', auditDelErr?.message || auditDelErr);
+        }
+        // Attempt to delete monthly/expense entries created today (best-effort)
+        try {
+          const expenseIds = (monthlyExpenses || []).filter(e => {
+            const d = new Date(e.date || e.created_at || e.created || e.timestamp || null);
+            return d && new Date(d).toISOString().slice(0,10) === selectedDate;
+          }).map(e => e.id).filter(Boolean);
+          if (expenseIds.length > 0) await Promise.all(expenseIds.map(id => axios.delete(`/monthly-expenses/${id}/`).catch(() => null)));
+        } catch (expErr) {
+          console.info('Error deleting todays expenses', expErr?.message || expErr);
+        }
+        // refresh client-side data after deletions
+        try { await checkAutoEnd(); } catch (_) {}
+        setClosedReport(res.data);
+        if (showAlert) showAlert(t('closed_success'));
+      } catch (uploadErr) {
+        const msg = uploadErr?.response?.data?.error || uploadErr?.message || String(uploadErr);
+        setCloseError(msg);
+        if (showAlert) showAlert(t('dialog_error') + ': ' + msg, { variant: 'danger' });
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+    } catch (e) {
+      setLoading(false);
+      console.error('PDF generation failed:', e);
+      const msg = e?.message || String(e);
+      setCloseError(msg);
+      if (showAlert) {
+        try { showAlert('Failed to generate PDF. Please check console for details.', { variant: 'danger' }); } catch (_) { /* ignore */ }
+      } else {
+        try { alert('Failed to generate PDF. Check console for details.'); } catch(_) {}
+      }
+      return;
     }
   };
 

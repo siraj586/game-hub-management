@@ -4,7 +4,7 @@ import { formatDuration, formatMoney, formatOrderSummary } from '../utils/helper
 import SessionCorrectionModal from './SessionCorrectionModal';
 
 const SessionHistory = ({ onViewReceipt }) => {
-  const { sessions, deleteSession, permissions, t } = useApp();
+  const { sessions, deleteSession, permissions, clearAllActivity, t } = useApp();
   const [correctionSession, setCorrectionSession] = useState(null);
   const endedSessions = sessions.filter(s => s.endTime);
   const canDelete = permissions?.manage_settings;
@@ -17,9 +17,19 @@ const SessionHistory = ({ onViewReceipt }) => {
           <i className="fas fa-clock-rotate-left text-cyan-400"></i>
           <h2 className="text-xl font-bold dark:text-white text-gray-800">{t('recent_activity')}</h2>
         </div>
-        <span className="text-xs px-3 py-1 rounded-full dark:bg-gray-700 bg-gray-200">
-          {endedSessions.length} {t('total_sessions')}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-3 py-1 rounded-full dark:bg-gray-700 bg-gray-200">
+            {endedSessions.length} {t('total_sessions')}
+          </span>
+          {permissions?.manage_settings && (
+            <button
+              onClick={clearAllActivity}
+              className="px-4 py-2 border border-red-500/50 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition"
+            >
+              <i className="fas fa-trash-alt mr-2"></i> {t('clear_all_activity')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-2xl overflow-hidden shadow-xl dark:bg-gray-800/70 bg-white/90">
@@ -69,7 +79,7 @@ const SessionHistory = ({ onViewReceipt }) => {
                         <button
                           onClick={() => onViewReceipt(session.id)}
                           className="text-cyan-500 hover:text-cyan-600 transition"
-                          title="View Receipt"
+                          title={t('receipt')}
                         >
                           <i className="fas fa-file-invoice-dollar"></i>
                         </button>
@@ -77,7 +87,7 @@ const SessionHistory = ({ onViewReceipt }) => {
                           <button
                             onClick={() => deleteSession(session.id)}
                             className="text-red-400 hover:text-red-600 transition"
-                            title="Delete"
+                            title={t('dialog_delete')}
                           >
                             <i className="fas fa-trash-alt"></i>
                           </button>
@@ -86,7 +96,7 @@ const SessionHistory = ({ onViewReceipt }) => {
                           <button
                             onClick={() => setCorrectionSession(session)}
                             className="text-amber-500 hover:text-amber-600 transition"
-                            title="Correct session"
+                            title={t('correct_session')}
                           >
                             <i className="fas fa-pen-to-square"></i>
                           </button>

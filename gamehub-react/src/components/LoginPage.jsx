@@ -234,7 +234,7 @@ const LoginPage = () => {
                       required
                       autoComplete="username"
                       className={inputClass}
-                      placeholder="owner"
+                      placeholder={t.username}
                     />
                   </div>
                   <div>

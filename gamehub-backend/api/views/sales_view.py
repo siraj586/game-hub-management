@@ -109,12 +109,39 @@ class SaleViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
         sale.total_cost = max(Decimal("0.00"), total_cost)
         sale.save(update_fields=["total_price", "total_cost"])
 
+        # Build human-readable sold items text, e.g. "2x Coffee and 1x Water" or "Coffee"
+        def _natural_join(parts):
+            if not parts:
+                return ""
+            if len(parts) == 1:
+                return parts[0]
+            if len(parts) == 2:
+                return f"{parts[0]} and {parts[1]}"
+            return f"{', '.join(parts[:-1])} and {parts[-1]}"
+
+        parts = []
+        for it in audit_items:
+            try:
+                q = int(it.get("quantity", 1))
+            except Exception:
+                q = 1
+            name = it.get("name") or it.get("item_name") or "item"
+            if q <= 1:
+                parts.append(f"{name}")
+            else:
+                parts.append(f"{q}x {name}")
+
+        sold_items_text = _natural_join(parts)
+        description_text = (
+            f"{request.user.username} sold {sold_items_text}" if sold_items_text else "Created standalone POS sale."
+        )
+
         AuditLog.objects.create(
             user=request.user,
             action_type=AuditLog.ACTION_CREATE,
             resource_type="Standalone Sale",
             resource_name=f"Sale #{sale.id}",
-            description="Created standalone POS sale.",
+            description=description_text,
             metadata={
                 "sale_id": sale.id,
                 "items": audit_items,

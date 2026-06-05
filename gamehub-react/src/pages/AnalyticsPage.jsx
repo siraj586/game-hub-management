@@ -295,7 +295,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
               type="button"
               onClick={swapCalculatorCurrencies}
               disabled={currencyOptions.length < 2}
-              title="Swap currencies"
+              title={t('swap_currencies')}
               className="h-11 w-11 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center"
             >
               <i className="fas fa-right-left" />
@@ -335,7 +335,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
               <h3 className="text-sm font-bold uppercase tracking-widest dark:text-gray-400 text-gray-500">
                 {t('exchange_rate')}
               </h3>
-              <p className="text-xs text-gray-400 mt-1">Set the lira value used by analytics and POS previews.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('exchange_rate_instruction')}</p>
             </div>
             {canManageCurrency && (
               <button
@@ -345,7 +345,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
                 className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
               >
                 <i className={`fas ${savingCurrency ? 'fa-spinner fa-spin' : 'fa-save'} mr-1`} />
-                Save
+                {t('save_changes')}
               </button>
             )}
           </div>
@@ -357,7 +357,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
             {canManageCurrency ? (
               <>
                 <label className="flex items-center justify-between gap-3 rounded-lg border dark:border-gray-700 border-gray-200 dark:bg-gray-900 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-300">
-                  <span>Enable local currency</span>
+                  <span>{t('enable_local_currency')}</span>
                   <input
                     type="checkbox"
                     checked={Boolean(tempCurrency.local_currency_enabled)}
@@ -369,7 +369,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block">
                       <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                        Currency
+                        {t('currency')}
                       </span>
                       <select
                         value={tempCurrency.local_currency_code || 'SYP'}
@@ -386,7 +386,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
                     </label>
                     <label className="block">
                       <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                        Lira value per 1 USD
+                        {t('local_units_per_usd')}
                       </span>
                       <input
                         type="number"

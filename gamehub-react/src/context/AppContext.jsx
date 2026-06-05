@@ -304,6 +304,8 @@ const translations = {
     to_currency: "To",
     configured_rate: "Configured rate",
     analytics_money_hint: "Money values are shown in USD and the selected local currency.",
+    swap_currencies: "Swap currencies",
+    exchange_rate_instruction: "Set the local currency value used by analytics and POS previews.",
     local_currency_disabled: "Enable SYP or LBP here to show dual-currency analytics.",
     system_not_configured: "System Not Configured",
     configure_devices_hint: "Add gaming devices in settings to start sessions.",
@@ -341,7 +343,13 @@ const translations = {
     dialog_delete: "Delete",
     dialog_clear: "Clear",
     dialog_reset: "Reset",
+    dialog_remove: "Remove",
+    correct_session: "Correct session",
     dialog_end: "End Session",
+    clear_all_activity: "Clear All",
+    confirm_clear_activity: "Clear all recent activity? This will permanently remove these records.",
+    activity_cleared_success: "Recent activity cleared.",
+    error_clearing_activity: "Error clearing recent activity",
     dialog_remove: "Remove",
     confirm_delete_user: "Delete user?",
     confirm_clear_logs: "Clear all logs permanently?",
@@ -595,6 +603,8 @@ const translations = {
     to_currency: "إلى",
     configured_rate: "السعر المعتمد",
     analytics_money_hint: "تظهر القيم المالية بالدولار وبالعملة المحلية المختارة.",
+    swap_currencies: "قلب العملات",
+    exchange_rate_instruction: "عيّن قيمة العملة المحلية المستخدمة في الإحصائيات ومعاينات نقاط البيع.",
     local_currency_disabled: "فعّل الليرة السورية أو اللبنانية هنا لعرض الإحصائيات بالعملتين.",
     system_not_configured: "النظام غير مُعدّ",
     configure_devices_hint: "أضف الأجهزة من الإعدادات لبدء الجلسات.",
@@ -632,7 +642,13 @@ const translations = {
     dialog_delete: "حذف",
     dialog_clear: "مسح",
     dialog_reset: "إعادة ضبط",
+    dialog_remove: "إزالة",
+    correct_session: "تصحيح الجلسة",
     dialog_end: "إنهاء الجلسة",
+    clear_all_activity: "مسح الكل",
+    confirm_clear_activity: "هل تريد مسح كل النشاط الأخير؟ سيؤدي ذلك إلى إزالة هذه السجلات نهائيًا.",
+    activity_cleared_success: "تم مسح النشاط الأخير.",
+    error_clearing_activity: "حدث خطأ أثناء المسح",
     dialog_remove: "إزالة",
     confirm_delete_user: "هل تريد حذف المستخدم؟",
     confirm_clear_logs: "هل تريد مسح كل السجلات نهائيًا؟",
@@ -1129,6 +1145,28 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const clearAllActivity = async () => {
+    const confirmed = await showConfirm({
+      title: t('dialog_clear'),
+      message: t('confirm_clear_activity'),
+      confirmText: t('dialog_clear'),
+      variant: 'danger',
+    });
+    if (!confirmed) return false;
+    try {
+      const ended = sessions.filter(s => s.endTime);
+      // Attempt to delete ended sessions on the server; ignore individual failures
+      await Promise.all(ended.map(s => axios.delete(`/sessions/${s.id}/`).catch(() => null)));
+      // Update local state immediately
+      setSessions(prev => prev.filter(s => !s.endTime));
+      await showAlert(t('activity_cleared_success'));
+      return true;
+    } catch (e) {
+      await showAlert(apiErrorMessage(e, t('error_clearing_activity')),{ title: t('dialog_error'), variant: 'danger' });
+      return false;
+    }
+  };
+
   const logout = async () => {
     clearLocalAppData({ keepPreferences: true });
     setIsAuthenticated(false);
@@ -1492,6 +1530,8 @@ export const AppProvider = ({ children }) => {
       addOrderToSession, removeOrderFromSession, checkAutoEnd, saveSettings, exportDailyReport,
       saveMonthlyExpenseSettings, saveMonthlyExpense, saveCurrencySettings, correctSession,
       saveInventoryItems, deleteInventoryItem, isStationActive, makeDirectSale, closeDayReport, addUser, updateUser, deleteUser, clearAuditLogs,
+      clearAllActivity,
+      fetchData,
       showAlert, showConfirm, t
     }}>
       {children}

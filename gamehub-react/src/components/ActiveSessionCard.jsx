@@ -147,7 +147,7 @@ const ActiveSessionCard = ({ session, onOpenBuffet }) => {
                       <button 
                         onClick={() => handleRemoveOrder(order.id, order.item_name)}
                         className="ml-1 text-red-500 hover:text-red-700 transition-colors"
-                        title="Remove Order"
+                        title={t('dialog_remove')}
                       >
                         <i className="fas fa-times"></i>
                       </button>
@@ -175,7 +175,7 @@ const ActiveSessionCard = ({ session, onOpenBuffet }) => {
                   <button
                     onClick={() => togglePauseSession(session)}
                     className={`w-10 h-10 rounded-lg ${session.isPaused ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'} text-white transition flex items-center justify-center shadow-md`}
-                    title={session.isPaused ? 'Resume' : 'Pause'}
+                    title={session.isPaused ? t('resume') : t('pause')}
                   >
                     <i className={`fas ${session.isPaused ? 'fa-play' : 'fa-pause'}`}></i>
                   </button>
