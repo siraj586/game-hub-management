@@ -1,59 +1,15 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatMoney } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 import axios from 'axios';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 
 const DailyReportModal = ({ isOpen, onClose }) => {
-  const { analytics, sessions, cafeItems, monthlyExpenses, closeDayReport, permissions, showConfirm, showAlert, checkAutoEnd, fetchData, t } = useApp();
+  const { analytics, sessions, cafeItems, monthlyExpenses, permissions, showConfirm, showAlert, checkAutoEnd, fetchData, t } = useApp();
   const [loading, setLoading] = useState(false);
   const [closedReport, setClosedReport] = useState(null);
   const [closeError, setCloseError] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-  const isFinalizingRef = useRef(false);
-
-  const finalizeHarvest = useCallback(async (reportId = null) => {
-    if (isFinalizingRef.current) return { success: false, error: 'Already finalizing' };
-    isFinalizingRef.current = true;
-    setLoading(true);
-    setCloseError('');
-    setClosedReport(null);
-    try {
-      const result = await closeDayReport(selectedDate);
-      setLoading(false);
-      if (result.success) {
-        setClosedReport(result.data);
-        return { success: true, data: result.data };
-      }
-      setCloseError(result.error);
-      return { success: false, error: result.error };
-    } catch (e) {
-      const msg = e?.message || String(e);
-      setCloseError(msg);
-      return { success: false, error: msg };
-    } finally {
-      isFinalizingRef.current = false;
-    }
-  }, [closeDayReport, selectedDate]);
-
-  const toSafeText = (value) => {
-    const safe = (v) => {
-      if (v === null || v === undefined) return '';
-      if (typeof v === 'string') return v;
-      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-      try {
-        const s = JSON.stringify(v);
-        return s.length > 300 ? s.slice(0, 300) + '...' : s;
-      } catch {
-        return String(v);
-      }
-    };
-    if (Array.isArray(value)) return value.map(safe);
-    return safe(value);
-  };
-
   if (!isOpen) return null;
   const canCloseShift = hasPermission(permissions, 'can_close_shift');
 
@@ -87,11 +43,15 @@ const DailyReportModal = ({ isOpen, onClose }) => {
     try {
       const salesRes = await axios.get('/sales/', { params: { page_size: 200 } }).catch(() => null);
       if (salesRes && salesRes.data) standaloneSales = Array.isArray(salesRes.data) ? salesRes.data : (Array.isArray(salesRes.data.results) ? salesRes.data.results : []);
-    } catch {}
+    } catch {
+      standaloneSales = [];
+    }
     try {
       const payRes = await axios.get('/payments/', { params: { page_size: 200 } }).catch(() => null);
       if (payRes && payRes.data) payments = Array.isArray(payRes.data) ? payRes.data : (Array.isArray(payRes.data.results) ? payRes.data.results : []);
-    } catch {}
+    } catch {
+      payments = [];
+    }
     try {
       // Use context audit logs as a fallback; fetch fresh list too
       const auditRes = await axios.get('/audit-logs/', { params: { page_size: 200 } }).catch(() => null);
@@ -100,7 +60,9 @@ const DailyReportModal = ({ isOpen, onClose }) => {
         const d = new Date(l.created_at || l.created || l.timestamp || l.time || l.date || l.createdAt || null);
         return d && new Date(d).toISOString().slice(0,10) === selectedDate;
       });
-    } catch {}
+    } catch {
+      todaysAuditLogs = [];
+    }
     const reportData = {
       date: selectedDate,
       generatedAt: new Date().toISOString(),
@@ -136,11 +98,6 @@ const DailyReportModal = ({ isOpen, onClose }) => {
         return fallback;
       };
 
-      const safeTextBlock = (items, formatter) => {
-        if (!Array.isArray(items) || items.length === 0) return ['No data available'];
-        return items.map((item, index) => safeText(formatter ? formatter(item, index) : item));
-      };
-
       const docText = (docObj, val, x, y, fallbackX = 14, fallbackY = 20) => {
         const X = (typeof x === 'number' && !isNaN(x)) ? x : (Number(x) || fallbackX);
         const Y = (typeof y === 'number' && !isNaN(y)) ? y : (Number(y) || fallbackY);
@@ -153,6 +110,8 @@ const DailyReportModal = ({ isOpen, onClose }) => {
         }
       };
 
+      const { jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
       const doc = new jsPDF('p', 'mm', 'a4');
       // dynamic vertical position
       let y = 20;
@@ -298,7 +257,7 @@ const DailyReportModal = ({ isOpen, onClose }) => {
         // Attempt to clear all audit logs (best-effort)
         try {
           await axios.post('/audit-logs/clear_logs/').catch(() => null);
-          try { if (typeof fetchData === 'function') await fetchData(); } catch (_) {}
+          try { if (typeof fetchData === 'function') await fetchData(); } catch { /* best-effort refresh */ }
         } catch (auditDelErr) {
           console.info('Error clearing audit logs', auditDelErr?.message || auditDelErr);
         }
@@ -313,7 +272,7 @@ const DailyReportModal = ({ isOpen, onClose }) => {
           console.info('Error deleting todays expenses', expErr?.message || expErr);
         }
         // refresh client-side data after deletions
-        try { await checkAutoEnd(); } catch (_) {}
+        try { await checkAutoEnd(); } catch { /* best-effort refresh */ }
         setClosedReport(res.data);
         if (showAlert) showAlert(t('closed_success'));
       } catch (uploadErr) {
@@ -330,9 +289,9 @@ const DailyReportModal = ({ isOpen, onClose }) => {
       const msg = e?.message || String(e);
       setCloseError(msg);
       if (showAlert) {
-        try { showAlert('Failed to generate PDF. Please check console for details.', { variant: 'danger' }); } catch (_) { /* ignore */ }
+        try { showAlert('Failed to generate PDF. Please check console for details.', { variant: 'danger' }); } catch { /* ignore */ }
       } else {
-        try { alert('Failed to generate PDF. Check console for details.'); } catch(_) {}
+        try { alert('Failed to generate PDF. Check console for details.'); } catch { /* ignore */ }
       }
       return;
     }

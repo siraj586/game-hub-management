@@ -92,7 +92,6 @@ const AnalyticsPage = ({ onOpenReport }) => {
   const todayRevenue = activeAnalytics ? activeAnalytics.completedRevenue : 0;
   const netProfit = activeAnalytics ? activeAnalytics.netProfit : 0;
   const monthlyExpenses = activeAnalytics ? activeAnalytics.monthlyExpenses || 0 : 0;
-  const salesRevenue = dailyBreakdown.reduce((sum, day) => sum + Number(day.salesRevenue || 0), 0);
   const salesCapital = dailyBreakdown.reduce((sum, day) => sum + Number(day.salesCapital || 0), 0);
   const sessionProductCost = dailyBreakdown.reduce((sum, day) => sum + Number(day.sessionProductCost || 0), 0);
   const selectedDaySummary = dailyBreakdown.find(day => day.date === detail.date);
