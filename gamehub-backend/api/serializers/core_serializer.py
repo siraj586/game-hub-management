@@ -135,6 +135,9 @@ class MonthlyExpenseSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "total", "created_at", "updated_at"]
+        extra_kwargs = {
+            "month": {"validators": []},
+        }
 
     def validate_month(self, value):
         return value.replace(day=1)

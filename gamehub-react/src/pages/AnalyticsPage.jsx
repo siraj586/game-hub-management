@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
-import { getRevenueTrend } from '../utils/helpers';
+import { formatDuration, getRevenueTrend } from '../utils/helpers';
 import {
   BASE_CURRENCY,
   canManageCurrencySettings,
@@ -32,6 +32,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
   const [analyticsPeriod, setAnalyticsPeriod] = useState('today');
   const [rangeStart, setRangeStart] = useState(new Date().toISOString().slice(0, 10));
   const [rangeEnd, setRangeEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDetailDate, setSelectedDetailDate] = useState(new Date().toISOString().slice(0, 10));
   const [filteredAnalytics, setFilteredAnalytics] = useState(analytics);
   const [tempCurrency, setTempCurrency] = useState({ ...defaultCurrencySettings, ...(currencySettings || {}) });
   const [savingCurrency, setSavingCurrency] = useState(false);
@@ -49,7 +50,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
 
   useEffect(() => {
     const fetchAnalytics = async () => {
-      const params = { period: analyticsPeriod };
+      const params = { period: analyticsPeriod, detail_date: selectedDetailDate };
       if (analyticsPeriod === 'custom') {
         params.start = rangeStart;
         params.end = rangeEnd;
@@ -57,12 +58,15 @@ const AnalyticsPage = ({ onOpenReport }) => {
       try {
         const response = await axios.get('/analytics/', { params });
         setFilteredAnalytics(response.data);
+        if (response.data?.detail?.date && response.data.detail.date !== selectedDetailDate) {
+          setSelectedDetailDate(response.data.detail.date);
+        }
       } catch {
         setFilteredAnalytics(analytics);
       }
     };
     fetchAnalytics();
-  }, [analyticsPeriod, rangeStart, rangeEnd, analytics]);
+  }, [analyticsPeriod, rangeStart, rangeEnd, selectedDetailDate, analytics]);
 
   const currencyOptions = useMemo(
     () => getCurrencyOptions(currencySettings),
@@ -81,9 +85,17 @@ const AnalyticsPage = ({ onOpenReport }) => {
 
   const activeSessions = sessions.filter((s) => !s.endTime);
   const activeAnalytics = filteredAnalytics || analytics;
+  const dailyBreakdown = activeAnalytics?.dailyBreakdown || [];
+  const detail = activeAnalytics?.detail || { sessions: [], sales: [] };
+  const detailSessions = detail.sessions || [];
+  const detailSales = detail.sales || [];
   const todayRevenue = activeAnalytics ? activeAnalytics.completedRevenue : 0;
   const netProfit = activeAnalytics ? activeAnalytics.netProfit : 0;
   const monthlyExpenses = activeAnalytics ? activeAnalytics.monthlyExpenses || 0 : 0;
+  const salesRevenue = dailyBreakdown.reduce((sum, day) => sum + Number(day.salesRevenue || 0), 0);
+  const salesCapital = dailyBreakdown.reduce((sum, day) => sum + Number(day.salesCapital || 0), 0);
+  const sessionProductCost = dailyBreakdown.reduce((sum, day) => sum + Number(day.sessionProductCost || 0), 0);
+  const selectedDaySummary = dailyBreakdown.find(day => day.date === detail.date);
   const totalActive = activeAnalytics ? activeAnalytics.activeSessions : activeSessions.length;
   const revenueTrend = getRevenueTrend(sessions);
   const canViewNetProfit = permissions?.view_analytics;
@@ -202,7 +214,7 @@ const AnalyticsPage = ({ onOpenReport }) => {
 
       <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
-          title={t('income_today')}
+          title={t('total_revenue')}
           value={formatUsd(todayRevenue)}
           secondaryValue={formatLocal(todayRevenue)}
           icon="fa-coins"
@@ -229,6 +241,24 @@ const AnalyticsPage = ({ onOpenReport }) => {
             subText={t('deducted_from_profit')}
           />
         )}
+        {canViewNetProfit && (
+          <StatCard
+            title={t('sales_capital')}
+            value={formatUsd(salesCapital)}
+            secondaryValue={formatLocal(salesCapital)}
+            icon="fa-boxes-stacked"
+            subText={t('standalone_sales_cost')}
+          />
+        )}
+        {canViewNetProfit && (
+          <StatCard
+            title={t('inventory_cost')}
+            value={formatUsd((activeAnalytics?.totalCost || 0))}
+            secondaryValue={formatLocal(activeAnalytics?.totalCost || 0)}
+            icon="fa-box-open"
+            subText={`${t('sales')}: ${formatUsd(salesCapital)} | ${t('sessions')}: ${formatUsd(sessionProductCost)}`}
+          />
+        )}
         <StatCard
           title={t('live_gamers')}
           value={totalActive}
@@ -241,6 +271,162 @@ const AnalyticsPage = ({ onOpenReport }) => {
           icon="fa-gamepad"
           subText={t('total_capacity')}
         />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+        <div className="rounded-xl p-4 sm:p-5 dark:bg-gray-800/80 bg-white border dark:border-gray-700 border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-widest dark:text-gray-400 text-gray-500">
+                {t('daily_reference')}
+              </h3>
+              <p className="text-xs dark:text-gray-500 text-gray-400 mt-1">{t('daily_reference_hint')}</p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-cyan-500/10 text-cyan-500">
+              {activeAnalytics?.dateRange?.start} - {activeAnalytics?.dateRange?.end}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="dark:bg-gray-900/80 bg-gray-100 dark:text-gray-300 text-gray-700">
+                <tr>
+                  <th className="px-3 py-2 text-left">{t('date')}</th>
+                  <th className="px-3 py-2 text-right">{t('sessions')}</th>
+                  <th className="px-3 py-2 text-right">{t('sales')}</th>
+                  <th className="px-3 py-2 text-right">{t('revenue')}</th>
+                  <th className="px-3 py-2 text-right">{t('capital')}</th>
+                  <th className="px-3 py-2 text-right">{t('profit')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dailyBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="py-6 text-center text-sm text-gray-500">{t('no_data_available')}</td>
+                  </tr>
+                ) : dailyBreakdown.map(day => (
+                  <tr
+                    key={day.date}
+                    onClick={() => setSelectedDetailDate(day.date)}
+                    className={`border-b dark:border-gray-700 border-gray-200 cursor-pointer transition ${
+                      day.date === detail.date
+                        ? 'dark:bg-indigo-500/15 bg-indigo-50'
+                        : 'hover:dark:bg-gray-700/40 hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className="px-3 py-2 font-mono text-xs dark:text-white text-gray-800">{day.date}</td>
+                    <td className="px-3 py-2 text-right">{day.sessionsCount}</td>
+                    <td className="px-3 py-2 text-right">{day.salesCount}</td>
+                    <td className="px-3 py-2 text-right font-bold text-emerald-500">{formatUsd(day.totalRevenue)}</td>
+                    <td className="px-3 py-2 text-right text-rose-500">{formatUsd(day.totalCost)}</td>
+                    <td className="px-3 py-2 text-right font-bold text-indigo-500">{formatUsd(day.grossProfit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-xl p-4 sm:p-5 dark:bg-gray-800/80 bg-white border dark:border-gray-700 border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-widest dark:text-gray-400 text-gray-500">
+                {t('selected_day_details')}
+              </h3>
+              <p className="text-xs dark:text-gray-500 text-gray-400 mt-1">
+                {detail.date || selectedDetailDate}
+              </p>
+            </div>
+            {selectedDaySummary && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-bold">
+                  {t('revenue')}: {formatUsd(selectedDaySummary.totalRevenue)}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-bold">
+                  {t('capital')}: {formatUsd(selectedDaySummary.totalCost)}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-500 font-bold">
+                  {t('profit')}: {formatUsd(selectedDaySummary.grossProfit)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <h4 className="mb-2 text-xs font-black uppercase tracking-widest dark:text-gray-400 text-gray-500">
+                {t('session_details')}
+              </h4>
+              <div className="overflow-x-auto rounded-lg border dark:border-gray-700 border-gray-200">
+                <table className="min-w-full text-xs">
+                  <thead className="dark:bg-gray-900 bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left">{t('customer')}</th>
+                      <th className="px-3 py-2 text-left">{t('station')}</th>
+                      <th className="px-3 py-2 text-left">{t('start_end')}</th>
+                      <th className="px-3 py-2 text-right">{t('duration')}</th>
+                      <th className="px-3 py-2 text-right">{t('products')}</th>
+                      <th className="px-3 py-2 text-right">{t('capital')}</th>
+                      <th className="px-3 py-2 text-right">{t('total')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailSessions.length === 0 ? (
+                      <tr><td colSpan="7" className="py-5 text-center text-gray-500">{t('no_completed_sessions')}</td></tr>
+                    ) : detailSessions.map(session => (
+                      <tr key={session.id} className="border-t dark:border-gray-700 border-gray-200">
+                        <td className="px-3 py-2 font-bold dark:text-white text-gray-800">#{session.id} {session.name}</td>
+                        <td className="px-3 py-2">{session.stationId}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {new Date(session.startTime).toLocaleTimeString()} - {new Date(session.endTime).toLocaleTimeString()}
+                        </td>
+                        <td className="px-3 py-2 text-right">{formatDuration(session.durationMinutes)}</td>
+                        <td className="px-3 py-2 text-right">{formatUsd(session.sessionProductRevenue)}</td>
+                        <td className="px-3 py-2 text-right text-rose-500">{formatUsd(session.sessionProductCost)}</td>
+                        <td className="px-3 py-2 text-right font-bold text-emerald-500">{formatUsd(session.finalTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-2 text-xs font-black uppercase tracking-widest dark:text-gray-400 text-gray-500">
+                {t('sales_details')}
+              </h4>
+              <div className="overflow-x-auto rounded-lg border dark:border-gray-700 border-gray-200">
+                <table className="min-w-full text-xs">
+                  <thead className="dark:bg-gray-900 bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left">{t('time')}</th>
+                      <th className="px-3 py-2 text-left">{t('user')}</th>
+                      <th className="px-3 py-2 text-left">{t('products')}</th>
+                      <th className="px-3 py-2 text-right">{t('revenue')}</th>
+                      <th className="px-3 py-2 text-right">{t('capital')}</th>
+                      <th className="px-3 py-2 text-right">{t('profit')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailSales.length === 0 ? (
+                      <tr><td colSpan="6" className="py-5 text-center text-gray-500">{t('no_sales_for_day')}</td></tr>
+                    ) : detailSales.map(sale => (
+                      <tr key={sale.id} className="border-t dark:border-gray-700 border-gray-200">
+                        <td className="px-3 py-2 whitespace-nowrap">#{sale.id} {new Date(sale.timestamp).toLocaleTimeString()}</td>
+                        <td className="px-3 py-2">{sale.username}</td>
+                        <td className="px-3 py-2 max-w-[220px]">
+                          {(sale.items || []).map(item => `${item.quantity}x ${item.name}`).join(', ') || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-emerald-500">{formatUsd(sale.totalPrice)}</td>
+                        <td className="px-3 py-2 text-right text-rose-500">{formatUsd(sale.totalCost)}</td>
+                        <td className="px-3 py-2 text-right font-bold text-indigo-500">{formatUsd(sale.profit)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-4">

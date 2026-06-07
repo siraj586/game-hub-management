@@ -11,6 +11,7 @@ const toLocalInput = (value) => {
 
 const SessionCorrectionModal = ({ session, onClose }) => {
   const { cafeItems, correctSession, showAlert, t } = useApp();
+  const [customerName, setCustomerName] = useState(session?.name || '');
   const [startTime, setStartTime] = useState(toLocalInput(session?.startTime));
   const [endTime, setEndTime] = useState(toLocalInput(session?.endTime));
   const [stationId, setStationId] = useState(session?.stationId || '');
@@ -39,20 +40,70 @@ const SessionCorrectionModal = ({ session, onClose }) => {
       return;
     }
 
+    const normalizedName = customerName.trim();
+    const normalizedStationId = stationId.trim();
+    if (!normalizedName) {
+      await showAlert(t('correction_customer_required'));
+      return;
+    }
+    if (!normalizedStationId) {
+      await showAlert(t('correction_station_required'));
+      return;
+    }
+    if (!startTime || !endTime) {
+      await showAlert(t('correction_times_required'));
+      return;
+    }
+
+    const parsedStart = new Date(startTime);
+    const parsedEnd = new Date(endTime);
+    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+      await showAlert(t('correction_times_required'));
+      return;
+    }
+    if (parsedStart >= parsedEnd) {
+      await showAlert(t('correction_time_order_invalid'));
+      return;
+    }
+
+    const normalizedDiscount = Number(discount || 0);
+    if (!Number.isFinite(normalizedDiscount) || normalizedDiscount < 0) {
+      await showAlert(t('correction_discount_invalid'));
+      return;
+    }
+
+    const invalidExistingOrder = (session.orders || [])
+      .filter(order => !removeOrderIds.includes(order.id))
+      .some(order => {
+        const quantity = Number(orderQuantities[order.id]);
+        return !Number.isInteger(quantity) || quantity <= 0;
+      });
+    if (invalidExistingOrder) {
+      await showAlert(t('correction_quantity_invalid'));
+      return;
+    }
+
+    const normalizedAddQuantity = Number(addQuantity || 0);
+    if (addItemId && (!Number.isInteger(normalizedAddQuantity) || normalizedAddQuantity <= 0)) {
+      await showAlert(t('correction_quantity_invalid'));
+      return;
+    }
+
     const updateOrders = (session.orders || [])
       .filter(order => !removeOrderIds.includes(order.id))
       .filter(order => Number(orderQuantities[order.id]) !== Number(order.quantity))
       .map(order => ({ orderId: order.id, quantity: Number(orderQuantities[order.id]) }));
 
     const addOrders = addItemId
-      ? [{ inventoryItemId: Number(addItemId), quantity: Number(addQuantity) || 1 }]
+      ? [{ inventoryItemId: Number(addItemId), quantity: normalizedAddQuantity }]
       : [];
 
     const ok = await correctSession(session.id, {
+      name: normalizedName,
       startTime,
       endTime,
-      stationId,
-      discount,
+      stationId: normalizedStationId,
+      discount: normalizedDiscount,
       removeOrderIds,
       updateOrders,
       addOrders,
@@ -77,6 +128,16 @@ const SessionCorrectionModal = ({ session, onClose }) => {
         <div className="p-5 max-h-[70vh] overflow-y-auto space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
+              <span className="block text-[11px] font-semibold text-gray-500 mb-1">Customer name</span>
+              <input value={customerName} onChange={e => setCustomerName(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
+            </label>
+            <label className="block">
+              <span className="block text-[11px] font-semibold text-gray-500 mb-1">Station code</span>
+              <input value={stationId} onChange={e => setStationId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
+            </label>
+            <label className="block">
               <span className="block text-[11px] font-semibold text-gray-500 mb-1">Start time</span>
               <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
@@ -84,11 +145,6 @@ const SessionCorrectionModal = ({ session, onClose }) => {
             <label className="block">
               <span className="block text-[11px] font-semibold text-gray-500 mb-1">End time</span>
               <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
-            </label>
-            <label className="block">
-              <span className="block text-[11px] font-semibold text-gray-500 mb-1">Station code</span>
-              <input value={stationId} onChange={e => setStationId(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
             </label>
             <label className="block">

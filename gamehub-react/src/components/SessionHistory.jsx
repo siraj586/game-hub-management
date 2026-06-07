@@ -6,7 +6,10 @@ import SessionCorrectionModal from './SessionCorrectionModal';
 const SessionHistory = ({ onViewReceipt }) => {
   const { sessions, deleteSession, permissions, clearAllActivity, t } = useApp();
   const [correctionSession, setCorrectionSession] = useState(null);
-  const endedSessions = sessions.filter(s => s.endTime);
+  const todayKey = new Date().toDateString();
+  const endedSessions = sessions.filter(
+    s => s.endTime && new Date(s.endTime).toDateString() === todayKey
+  );
   const canDelete = permissions?.manage_settings;
   const canCorrect = permissions?.manage_settings;
 

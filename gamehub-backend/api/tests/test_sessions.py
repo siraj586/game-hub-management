@@ -1,5 +1,7 @@
 from decimal import Decimal
+from datetime import timedelta
 from rest_framework import status
+from django.utils import timezone
 from .base import BaseAPITestCase
 from api.models import (
     AuditLog,
@@ -327,6 +329,145 @@ class SessionViewSetTests(BaseAPITestCase):
         self.assertEqual(log.metadata["reason"], "Order was added to the wrong session")
         self.assertIn("old_value", log.metadata)
         self.assertIn("new_value", log.metadata)
+
+    def test_owner_can_correct_completed_session_details_and_historical_station(self):
+        self.authenticate('owner')
+        ru2 = ResourceUnit.objects.create(resource_type=self.rt1, code="PC-02")
+        Session.objects.create(
+            customer_name="Active", resource_unit=ru2, session_type=Session.SESSION_POSTPAID
+        )
+        end = timezone.now()
+        start = end - timedelta(hours=2)
+        session = Session.objects.create(
+            customer_name="Old Name",
+            resource_unit=self.ru1,
+            session_type=Session.SESSION_POSTPAID,
+            start_time=start,
+        )
+        session.end_session(ref_time=end)
+
+        response = self.client.post(
+            f'{self.url}{session.id}/correct/',
+            {
+                "name": "Corrected Name",
+                "stationId": "PC-02",
+                "startTime": start.isoformat(),
+                "endTime": end.isoformat(),
+                "discount": "5.00",
+                "reason": "Moved to the right history station",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        session.refresh_from_db()
+        self.assertEqual(session.customer_name, "Corrected Name")
+        self.assertEqual(session.resource_unit, ru2)
+        self.assertEqual(session.discount, Decimal("5.00"))
+        self.assertEqual(session.final_duration_minutes, Decimal("120.00"))
+        self.assertEqual(session.final_cost, Decimal("15.00"))
+
+    def test_correct_session_rejects_active_session(self):
+        self.authenticate('owner')
+        session = Session.objects.create(
+            customer_name="Active", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
+        )
+
+        response = self.client.post(
+            f'{self.url}{session.id}/correct/',
+            {"discount": "1.00", "reason": "Should not edit active sessions here"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Only completed sessions can be corrected.")
+
+    def test_correct_session_rejects_blank_end_time_for_completed_session(self):
+        self.authenticate('owner')
+        session = Session.objects.create(
+            customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
+        )
+        session.end_session()
+        original_end_time = session.end_time
+
+        response = self.client.post(
+            f'{self.url}{session.id}/correct/',
+            {"endTime": "", "reason": "Do not reopen completed sessions"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        session.refresh_from_db()
+        self.assertEqual(session.end_time, original_end_time)
+
+    def test_correct_session_rejects_moving_to_stopped_station(self):
+        self.authenticate('owner')
+        stopped = ResourceUnit.objects.create(
+            resource_type=self.rt1, code="PC-STOP", status=ResourceUnit.STATUS_STOPPED
+        )
+        session = Session.objects.create(
+            customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
+        )
+        session.end_session()
+
+        response = self.client.post(
+            f'{self.url}{session.id}/correct/',
+            {"stationId": stopped.code, "reason": "Wrong station"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], f"Station {stopped.code} is stopped.")
+
+    def test_correct_session_updates_added_orders_stock_and_final_total(self):
+        self.authenticate('owner')
+        self.item1.quantity_in_stock = 4
+        self.item1.save(update_fields=["quantity_in_stock"])
+        item2 = InventoryItem.objects.create(
+            category=self.cat1,
+            name="Water",
+            sale_price=Decimal("4.00"),
+            quantity_in_stock=3,
+        )
+        end = timezone.now()
+        start = end - timedelta(hours=1)
+        session = Session.objects.create(
+            customer_name="John",
+            resource_unit=self.ru1,
+            session_type=Session.SESSION_POSTPAID,
+            start_time=start,
+        )
+        order = SessionOrder.objects.create(
+            session=session,
+            inventory_item=self.item1,
+            item_name=self.item1.name,
+            quantity=1,
+            unit_price=self.item1.sale_price,
+            unit_cost=self.item1.cost_price,
+            total_price=Decimal("0.00"),
+        )
+        session.end_session(ref_time=end)
+
+        response = self.client.post(
+            f'{self.url}{session.id}/correct/',
+            {
+                "updateOrders": [{"orderId": order.id, "quantity": 3}],
+                "addOrders": [{"inventoryItemId": item2.id, "quantity": 2}],
+                "discount": "1.00",
+                "reason": "Corrected item quantities",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        session.refresh_from_db()
+        self.item1.refresh_from_db()
+        item2.refresh_from_db()
+        self.assertEqual(self.item1.quantity_in_stock, 2)
+        self.assertEqual(item2.quantity_in_stock, 1)
+        self.assertEqual(session.orders.count(), 2)
+        self.assertEqual(session.final_duration_minutes, Decimal("60.00"))
+        self.assertEqual(session.final_cost, Decimal("24.50"))
 
     def test_staff_cannot_correct_session(self):
         self.grant_staff_permission(can_end_session=True)

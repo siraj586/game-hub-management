@@ -96,6 +96,7 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
 
     def _correction_snapshot(self, session):
         return {
+            "customer_name": session.customer_name,
             "resource_unit_id": session.resource_unit_id,
             "start_time": session.start_time.isoformat() if session.start_time else None,
             "end_time": session.end_time.isoformat() if session.end_time else None,
@@ -446,6 +447,12 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
     @transaction.atomic
     def correct(self, request, pk=None):
         session = self.get_object()
+        if not session.end_time:
+            return Response(
+                {"error": "Only completed sessions can be corrected."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         reason = (request.data.get("reason") or "").strip()
         if not reason:
             return Response(
@@ -454,6 +461,20 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
             )
 
         old_values = self._correction_snapshot(session)
+
+        if "name" in request.data or "customerName" in request.data:
+            customer_name = (
+                request.data.get("name")
+                if "name" in request.data
+                else request.data.get("customerName")
+            )
+            customer_name = (customer_name or "").strip()
+            if not customer_name:
+                return Response(
+                    {"error": "Customer name is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            session.customer_name = customer_name
 
         if "resourceUnitId" in request.data or "stationId" in request.data:
             lookup = {"is_active": True}
@@ -471,12 +492,12 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
                     {"error": "Resource unit not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            occupied = Session.objects.filter(
-                resource_unit=resource_unit, end_time__isnull=True
-            ).exclude(id=session.id).exists()
-            if occupied:
+            if (
+                resource_unit.id != session.resource_unit_id
+                and resource_unit.status != ResourceUnit.STATUS_ACTIVE
+            ):
                 return Response(
-                    {"error": f"Station {resource_unit.code} is already occupied."},
+                    {"error": f"Station {resource_unit.code} is stopped."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             session.resource_unit = resource_unit
@@ -492,7 +513,10 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
         if "endTime" in request.data:
             end_time = request.data.get("endTime")
             if end_time in (None, ""):
-                session.end_time = None
+                return Response(
+                    {"error": "End time is required for completed session corrections."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             else:
                 parsed, error = self._parse_datetime_value(end_time, "endTime")
                 if error:
@@ -513,6 +537,7 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
 
         session.save(
             update_fields=[
+                "customer_name",
                 "resource_unit",
                 "start_time",
                 "end_time",
