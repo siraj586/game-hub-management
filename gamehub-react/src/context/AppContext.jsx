@@ -855,22 +855,20 @@ export const AppProvider = ({ children }) => {
       setSystemName(authPayload.shop_name);
       localStorage.setItem('gamehub_system_name', authPayload.shop_name);
     }
-    // Prefer server-side bootstrap status as the source of truth.
-    try {
-      const status = await fetchBootstrapStatus();
-      setHasCompletedSetup(!status.needs_setup);
-    } catch {
-      // Fallback to client-side marker if status fetch fails
-      setHasCompletedSetup(readSetupComplete(userId));
-    }
+    // If login succeeded, the system is already set up — no need to re-check bootstrap status.
+    // Calling fetchBootstrapStatus() here was causing a re-setup loop on every login.
+    setHasCompletedSetup(true);
+    localStorage.setItem(setupStorageKey(userId), 'true');
+    setBootstrapStatus({ loading: false, needs_setup: false, shop_name: authPayload.shop_name || '' });
     rememberRecentUser(authPayload.username);
     await fetchData();
   };
 
-  const fetchBootstrapStatus = async () => {
+  const fetchBootstrapStatus = async ({ clearOnSetup = false } = {}) => {
     try {
       const res = await axios.get('/auth/bootstrap/status/');
-      if (res.data.needs_setup) {
+      if (res.data.needs_setup && clearOnSetup) {
+        // Only clear local data when explicitly called during app initialization (not after login)
         clearLocalAppData({ keepPreferences: true });
         setIsAuthenticated(false);
         setHasCompletedSetup(false);
@@ -1212,7 +1210,7 @@ export const AppProvider = ({ children }) => {
   // Initialize bootstrap status, then restore session only if system is already set up
   useEffect(() => {
     const init = async () => {
-      const status = await fetchBootstrapStatus();
+      const status = await fetchBootstrapStatus({ clearOnSetup: true });
       if (status.needs_setup) return;
       const token = localStorage.getItem('gamehub_token');
       if (token) {
