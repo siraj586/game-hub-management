@@ -9,7 +9,6 @@ import SessionsPage from './pages/SessionsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import StandaloneSalesPage from './pages/StandaloneSalesPage';
 import SettingsPage from './pages/SettingsPage';
-import DailyReportModal from './components/DailyReportModal';
 
 function MainApp() {
   const {
@@ -20,9 +19,7 @@ function MainApp() {
   } = useApp();
 
   const [currentPage, setCurrentPage] = useState('sessions');
-  const [reportOpen, setReportOpen] = useState(false);
 
-  const canViewReport = hasPermission(permissions, 'can_view_shift_report') || permissions?.view_analytics;
   const canOpenAdminPanel =
     permissions?.manage_settings || permissions?.manage_users || permissions?.view_audit_logs;
   const canSales = hasPermission(permissions, 'can_create_standalone_sale');
@@ -48,7 +45,7 @@ function MainApp() {
   const renderPage = () => {
     switch (activePage) {
       case 'analytics':
-        return <AnalyticsPage onOpenReport={() => setReportOpen(true)} />;
+        return <AnalyticsPage />;
       case 'sales':
         return <StandaloneSalesPage />;
       case 'settings':
@@ -68,9 +65,7 @@ function MainApp() {
     <AppLayout
       currentPage={activePage}
       onNavigate={setCurrentPage}
-      onOpenReport={() => setReportOpen(true)}
       canOpenAdminPanel={canOpenAdminPanel}
-      canViewReport={canViewReport}
     >
       {renderPage()}
 
@@ -80,8 +75,6 @@ function MainApp() {
           <span className="mx-2 text-rose-500/80 font-mono">AUTO-END</span>
         )}
       </footer>
-
-      <DailyReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
     </AppLayout>
   );
 }

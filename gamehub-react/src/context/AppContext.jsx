@@ -1098,17 +1098,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const closeDayReport = async (date = null) => {
-    try {
-      const payload = date ? { date } : {};
-      const res = await axios.post('/daily-reports/close_day/', payload);
-      await fetchData(); // refresh analytics + inventory stock
-      return { success: true, data: res.data };
-    } catch (e) {
-      const msg = apiErrorMessage(e, 'Unknown error');
-      return { success: false, error: msg };
-    }
-  };
+
 
   const addUser = async (userData) => {
     try {
@@ -1515,30 +1505,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const exportDailyReport = async () => {
-    const todayStr = new Date().toDateString();
-    const todaysCompleted = sessions.filter(s => s.endTime && new Date(s.endTime).toDateString() === todayStr);
-    if (todaysCompleted.length === 0) {
-      await showAlert(t('no_completed_today'));
-      return;
-    }
-    const headers = ["Session ID", "Customer", "Station", "Start", "End", "Duration", "Earnings"];
-    const rows = todaysCompleted.map(s => [
-      s.id, s.name, s.resourceId || s.stationId,
-      new Date(s.startTime).toLocaleTimeString(),
-      new Date(s.endTime).toLocaleTimeString(),
-      `${Math.floor((s.durationMinutes || 0) / 60)}h ${Math.floor((s.durationMinutes || 0) % 60)}m`,
-      `$${s.totalCost}`,
-    ]);
-    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `gamehub_report_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
-
   return (
     <AppContext.Provider value={{
       sessions, devices, cafeItems, analytics, darkMode, isAuthenticated, hasCompletedSetup,
@@ -1546,9 +1512,9 @@ export const AppProvider = ({ children }) => {
       currencySettings, monthlyExpenseSettings, monthlyExpenses,
       toggleDarkMode, toggleLanguage, login, logout, bootstrapOwner, fetchBootstrapStatus, completeSetup, resetSetup,
       addSession, endSession, deleteSession, togglePauseSession,
-      addOrderToSession, removeOrderFromSession, checkAutoEnd, saveSettings, exportDailyReport,
+      addOrderToSession, removeOrderFromSession, checkAutoEnd, saveSettings,
       saveMonthlyExpenseSettings, saveMonthlyExpense, saveCurrencySettings, correctSession,
-      saveInventoryItems, deleteInventoryItem, isStationActive, makeDirectSale, closeDayReport, addUser, updateUser, deleteUser, clearAuditLogs,
+      saveInventoryItems, deleteInventoryItem, isStationActive, makeDirectSale, addUser, updateUser, deleteUser, clearAuditLogs,
       clearAllActivity,
       fetchData,
       showAlert, showConfirm, t

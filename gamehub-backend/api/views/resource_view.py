@@ -58,6 +58,13 @@ class ResourceUnitViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
 
     def _set_status(self, status_value):
         unit = self.get_object()
+        
+        if status_value == ResourceUnit.STATUS_STOPPED:
+            has_active_sessions = unit.sessions.filter(end_time__isnull=True).exists()
+            if has_active_sessions:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"detail": "Cannot change the state of a device that has an active session."})
+                
         old_status = unit.status
         unit.status = status_value
         unit.save(update_fields=["status"])
@@ -74,6 +81,16 @@ class ResourceUnitViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
             },
         )
         return Response(self.get_serializer(unit).data)
+
+    def perform_update(self, serializer):
+        unit = self.get_object()
+        new_status = serializer.validated_data.get("status")
+        if new_status == ResourceUnit.STATUS_STOPPED and unit.status != ResourceUnit.STATUS_STOPPED:
+            has_active_sessions = unit.sessions.filter(end_time__isnull=True).exists()
+            if has_active_sessions:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"status": "Cannot change the state of a device that has an active session."})
+        serializer.save()
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):

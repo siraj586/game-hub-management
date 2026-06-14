@@ -12,9 +12,7 @@ const AppLayout = ({
   children,
   currentPage,
   onNavigate,
-  onOpenReport,
   canOpenAdminPanel,
-  canViewReport,
 }) => {
   const {
     systemName,
@@ -58,16 +56,6 @@ const AppLayout = ({
                 </div>
                 <span className="text-xs font-bold dark:text-gray-300 text-gray-700">{currentUser.username}</span>
               </div>
-            )}
-            {canViewReport && (
-              <button
-                type="button"
-                onClick={onOpenReport}
-                className="p-2 rounded-lg text-emerald-600 dark:bg-gray-800 bg-gray-100 hover:bg-emerald-500/10"
-                title={t('daily_report')}
-              >
-                <i className="fas fa-file-invoice" />
-              </button>
             )}
             <button type="button" onClick={toggleLanguage} className="p-2 rounded-lg text-blue-500 dark:bg-gray-800 bg-gray-100 text-sm font-bold">
               {language === 'ar' ? 'EN' : 'ع'}

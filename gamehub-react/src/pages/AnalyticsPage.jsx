@@ -14,7 +14,7 @@ import {
 } from '../utils/currency';
 import StatCard from '../components/StatCard';
 
-const AnalyticsPage = ({ onOpenReport }) => {
+const AnalyticsPage = () => {
   const {
     sessions,
     devices,
@@ -98,7 +98,6 @@ const AnalyticsPage = ({ onOpenReport }) => {
   const totalActive = activeAnalytics ? activeAnalytics.activeSessions : activeSessions.length;
   const revenueTrend = getRevenueTrend(sessions);
   const canViewNetProfit = permissions?.view_analytics;
-  const canViewReport = permissions?.can_view_shift_report || permissions?.view_analytics;
   const canManageCurrency = canManageCurrencySettings(permissions);
   const totalCapacity = devices.reduce((a, b) => a + b.count, 0);
   const calculatorResult = convertMoney(
@@ -152,16 +151,6 @@ const AnalyticsPage = ({ onOpenReport }) => {
           </h2>
           <p className="text-sm dark:text-gray-500 text-gray-400 mt-1">{t('analytics_subtitle')}</p>
         </div>
-        {canViewReport && (
-          <button
-            type="button"
-            onClick={onOpenReport}
-            className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 shadow-md"
-          >
-            <i className="fas fa-file-invoice mr-2" />
-            {t('daily_report')}
-          </button>
-        )}
       </div>
 
       <div className="rounded-xl p-3 sm:p-4 dark:bg-gray-800/80 bg-white border dark:border-gray-700 border-gray-200 shadow-sm">
@@ -219,7 +208,6 @@ const AnalyticsPage = ({ onOpenReport }) => {
           icon="fa-coins"
           trend={revenueTrend.text}
           trendUp={revenueTrend.up}
-          onClick={canViewReport ? onOpenReport : undefined}
         />
         {canViewNetProfit && (
           <StatCard
@@ -228,7 +216,6 @@ const AnalyticsPage = ({ onOpenReport }) => {
             secondaryValue={formatLocal(netProfit)}
             icon="fa-chart-line"
             subText={monthlyExpenses > 0 ? t('after_monthly_expenses') : t('after_inventory')}
-            onClick={onOpenReport}
           />
         )}
         {canViewNetProfit && monthlyExpenses > 0 && (

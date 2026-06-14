@@ -59,7 +59,7 @@ const UserManagement = () => {
   const updateDraftPermission = (userId, key, checked) => {
     setPermissionDrafts(prev => ({
       ...prev,
-      [userId]: { ...emptyStaffPermissions(), ...(prev[userId] || {}), [key]: checked },
+      [userId]: { ...(prev[userId] || {}), [key]: checked },
     }));
   };
 
