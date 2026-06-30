@@ -42,6 +42,23 @@ def local_to_usd(local_amount, settings=None):
     return round_money(Decimal(str(local_amount)) / settings.local_units_per_usd)
 
 
+def frozen_rate_for_currency(payment_currency, settings=None):
+    """
+    Return the exchange rate to freeze on a transaction.
+    Always returns a Decimal — never None.
+      USD (or any unknown currency)  → Decimal("1")
+      configured local currency      → settings.local_units_per_usd
+    """
+    settings = settings or get_currency_settings()
+    code = _normalize_currency(payment_currency)
+    if code == BASE_CURRENCY:
+        return Decimal("1")
+    local_code = _normalize_currency(settings.local_currency_code or "")
+    if local_code and code == local_code and settings.local_units_per_usd:
+        return Decimal(str(settings.local_units_per_usd))
+    return Decimal("1")
+
+
 def convert_money(amount, from_currency, to_currency, settings=None):
     settings = settings or get_currency_settings()
     from_code = _normalize_currency(from_currency)

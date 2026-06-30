@@ -10,6 +10,11 @@ class Sale(models.Model):
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    # Multi-Currency Accounting Fields — no default; view must supply explicitly
+    payment_currency = models.CharField(max_length=3)
+    paid_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    exchange_rate = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+
     @property
     def profit(self):
         return self.total_price - self.total_cost

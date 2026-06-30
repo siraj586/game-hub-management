@@ -35,6 +35,7 @@ from .sales_view import SaleViewSet
 from .audit_view import AuditLogViewSet
 from .analytics_view import AnalyticsView
 from .setup_view import BulkSetupView
+from .daily_report_view import DailyReportViewSet
 
 __all__ = [
     "IsOwner",
@@ -74,4 +75,5 @@ __all__ = [
     "AuditLogViewSet",
     "AnalyticsView",
     "BulkSetupView",
+    "DailyReportViewSet",
 ]

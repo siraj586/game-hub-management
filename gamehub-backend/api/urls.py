@@ -6,6 +6,7 @@ from .views import (
     AuditLogViewSet,
     BulkSetupView,
     CurrencySettingsView,
+    DailyReportViewSet,
     FeatureFlagViewSet,
     MonthlyExpenseSettingsView,
     MonthlyExpenseViewSet,
@@ -35,6 +36,7 @@ router.register(r"sessions", SessionViewSet, basename="session")
 router.register(r"sales", SaleViewSet, basename="sale")
 router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
 router.register(r"users", UserViewSet, basename="user")
+router.register(r"daily-reports", DailyReportViewSet, basename="daily-report")
 
 urlpatterns = [
     path("auth/login/", CustomObtainAuthToken.as_view(), name="auth-login"),

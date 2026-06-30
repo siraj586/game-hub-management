@@ -27,13 +27,27 @@ class SaleViewSetTests(BaseAPITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_staff_with_permission_creates_sale_and_updates_stock(self):
+    def test_sale_rejects_missing_payment_currency(self):
         self.grant_staff_permission(can_create_standalone_sale=True)
         self.authenticate("staff")
 
         response = self.client.post(
             self.url,
             {"items": [{"id": self.item.id, "quantity": 1}]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("paymentCurrency", response.data)
+        self.assertEqual(Sale.objects.count(), 0)
+
+    def test_staff_with_permission_creates_sale_and_updates_stock(self):
+        self.grant_staff_permission(can_create_standalone_sale=True)
+        self.authenticate("staff")
+
+        response = self.client.post(
+            self.url,
+            {"items": [{"id": self.item.id, "quantity": 1}], "paymentCurrency": "USD"},
             format="json",
         )
 
@@ -54,7 +68,7 @@ class SaleViewSetTests(BaseAPITestCase):
 
         response = self.client.post(
             self.url,
-            {"items": [{"id": self.item.id, "quantity": 3}]},
+            {"items": [{"id": self.item.id, "quantity": 3}], "paymentCurrency": "USD"},
             format="json",
         )
 
@@ -73,7 +87,8 @@ class SaleViewSetTests(BaseAPITestCase):
                 "items": [
                     {"id": self.item.id, "quantity": 1},
                     {"id": self.item.id, "quantity": 2},
-                ]
+                ],
+                "paymentCurrency": "USD",
             },
             format="json",
         )
@@ -89,7 +104,7 @@ class SaleViewSetTests(BaseAPITestCase):
 
         response = self.client.post(
             self.url,
-            {"items": [{"id": self.item.id, "quantity": 0}]},
+            {"items": [{"id": self.item.id, "quantity": 0}], "paymentCurrency": "USD"},
             format="json",
         )
 
@@ -98,7 +113,7 @@ class SaleViewSetTests(BaseAPITestCase):
         self.assertEqual(self.item.quantity_in_stock, 2)
 
     def test_owner_deleting_sale_restores_stock(self):
-        sale = Sale.objects.create(user=self.owner, total_price=2.50, total_cost=1.00)
+        sale = Sale.objects.create(user=self.owner, total_price=2.50, total_cost=1.00, payment_currency="USD")
         SaleItem.objects.create(
             sale=sale,
             inventory_item=self.item,

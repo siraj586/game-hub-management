@@ -85,15 +85,14 @@ class SessionSerializer(serializers.ModelSerializer):
         return round(obj.get_active_ms() / 60000, 2)
 
     def get_totalCost(self, obj):
-        if obj.final_cost is not None:
-            return float(obj.final_cost)
-        return float(obj.get_live_cost())
+        cost = obj.final_cost if obj.final_cost is not None else obj.get_live_cost()
+        return str(round_money(cost))
 
     def get_ordersCost(self, obj):
-        return float(obj.get_orders_cost())
+        return str(round_money(obj.get_orders_cost()))
 
     def get_live_cost(self, obj):
-        return float(obj.get_live_cost())
+        return str(round_money(obj.get_live_cost()))
 
     def get_elapsed_time(self, obj):
         if obj.final_duration_minutes is not None:
@@ -101,12 +100,11 @@ class SessionSerializer(serializers.ModelSerializer):
         return round(obj.get_active_ms() / 60000, 2)
 
     def get_effective_rate(self, obj):
-        return float(obj.effective_hourly_rate)
+        return str(round_money(obj.effective_hourly_rate))
 
     def get_final_total(self, obj):
-        if obj.final_cost is not None:
-            return float(obj.final_cost)
-        return float(obj.get_live_cost())
+        cost = obj.final_cost if obj.final_cost is not None else obj.get_live_cost()
+        return str(round_money(cost))
 
     def get_paused_duration(self, obj):
         paused_ms = obj.total_paused_ms
@@ -126,25 +124,11 @@ class SessionSerializer(serializers.ModelSerializer):
             "stationId": data["stationId"],
             "resourceUnitId": data["resource_unit"],
             "sessionType": data["session_type"],
-            "pricePerHour": (
-                float(data["custom_price_per_hour"])
-                if data["custom_price_per_hour"] is not None
-                else None
-            ),
-            "fixedPrice": (
-                float(data["fixed_price"]) if data["fixed_price"] is not None else None
-            ),
-            "prepaidAmountUsd": (
-                float(data["prepaid_amount_usd"])
-                if data["prepaid_amount_usd"] is not None
-                else None
-            ),
+            "pricePerHour": data["custom_price_per_hour"],
+            "fixedPrice": data["fixed_price"],
+            "prepaidAmountUsd": data["prepaid_amount_usd"],
             "originalPaymentCurrency": data["original_payment_currency"],
-            "originalPaymentAmount": (
-                float(data["original_payment_amount"])
-                if data["original_payment_amount"] is not None
-                else None
-            ),
+            "originalPaymentAmount": data["original_payment_amount"],
             "durationHours": (
                 float(data["duration_hours"])
                 if data["duration_hours"] is not None
@@ -156,7 +140,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "isPaused": data["is_paused"],
             "lastPauseTime": data["last_pause_time"],
             "totalPausedMs": data["total_paused_ms"],
-            "discount": float(data["discount"]),
+            "discount": data["discount"],
             "orders": data["orders"],
             "durationMinutes": data["durationMinutes"],
             "ordersCost": data["ordersCost"],
@@ -195,7 +179,7 @@ class SessionCreateSerializer(serializers.Serializer):
         max_length=3, required=False, default=BASE_CURRENCY, allow_blank=True
     )
     paymentCurrency = serializers.CharField(
-        max_length=3, required=False, default=BASE_CURRENCY, allow_blank=True
+        max_length=3, required=False, allow_null=True, allow_blank=True
     )
     prepaidAmount = serializers.DecimalField(
         max_digits=18, decimal_places=2, required=False, allow_null=True
@@ -261,9 +245,13 @@ class SessionCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"prepaidAmount": "Prepaid amount must be greater than 0."}
                 )
-            payment_currency = (
-                attrs.get("paymentCurrency") or BASE_CURRENCY
-            ).strip().upper()
+            # Phase 1: paymentCurrency is required for prepaid sessions
+            payment_currency_raw = attrs.get("paymentCurrency")
+            if not payment_currency_raw or not str(payment_currency_raw).strip():
+                raise serializers.ValidationError(
+                    {"paymentCurrency": "Payment currency is required for prepaid sessions."}
+                )
+            payment_currency = str(payment_currency_raw).strip().upper()
             try:
                 prepaid_amount_usd = convert_money(
                     prepaid_amount,

@@ -51,6 +51,10 @@ class DailyReport(models.Model):
     standalone_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
+    # Multi-Currency Tills
+    actual_usd_received = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_local_received = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    
     net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     active_sessions_at_close = models.IntegerField(default=0)
     

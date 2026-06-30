@@ -3,10 +3,17 @@ import { useApp } from '../context/AppContext';
 import { hasPermission } from '../utils/permissions';
 
 const StandaloneSaleModal = ({ isOpen, onClose }) => {
-  const { cafeItems, makeDirectSale, permissions } = useApp();
+  const { cafeItems, makeDirectSale, permissions, currencySettings } = useApp();
   const [cart, setCart] = useState([]);
   const canCreateSale = hasPermission(permissions, 'can_create_standalone_sale');
   const activeItems = cafeItems.filter(item => item.isActive !== false);
+
+  const dualCurrencyEnabled = currencySettings?.local_currency_enabled;
+  const localCurrencyCode = currencySettings?.local_currency_code || 'LOCAL';
+  const localRate = Number(currencySettings?.local_units_per_usd || 1);
+  // Phase 3: null until cashier explicitly picks when dual-currency is active
+  const [paymentCurrency, setPaymentCurrency] = useState(dualCurrencyEnabled ? null : 'USD');
+  const currencyChosen = !!paymentCurrency;
 
   const addToCart = (item) => {
     setCart(prev => {
@@ -23,11 +30,13 @@ const StandaloneSaleModal = ({ isOpen, onClose }) => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalCents = cart.reduce((sum, item) => sum + Math.round(Number(item.price) * 100) * item.quantity, 0);
+  const total = totalCents / 100;
+  const localTotal = Math.round(totalCents * localRate / 100);
 
   const handleCheckout = async () => {
-    if (cart.length === 0 || !canCreateSale) return;
-    const result = await makeDirectSale(cart);
+    if (cart.length === 0 || !canCreateSale || !currencyChosen) return;
+    const result = await makeDirectSale(cart, paymentCurrency);
     if (result.success) {
       setCart([]);
       onClose();
@@ -105,15 +114,35 @@ const StandaloneSaleModal = ({ isOpen, onClose }) => {
           </div>
 
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            {dualCurrencyEnabled && (
+              <div className="mb-4">
+                <label className="block text-[11px] font-bold dark:text-gray-400 text-gray-500 mb-1">
+                  Payment Method <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={paymentCurrency ?? ''}
+                  onChange={e => setPaymentCurrency(e.target.value || null)}
+                  className={`w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition dark:bg-gray-700 bg-gray-50 dark:border-gray-600 border-gray-300 dark:text-white text-sm font-bold ${!currencyChosen ? 'border-red-400 dark:border-red-500' : ''}`}
+                >
+                  <option value="">— select payment currency —</option>
+                  <option value="USD">Pay in USD (${total.toFixed(2)})</option>
+                  <option value={localCurrencyCode}>Pay in {localCurrencyCode} ({localTotal.toLocaleString()})</option>
+                </select>
+                {!currencyChosen && (
+                  <p className="text-red-500 text-[10px] mt-1 font-bold">Select a payment currency to continue.</p>
+                )}
+              </div>
+            )}
             <div className="flex justify-between items-center mb-6">
               <span className="text-gray-500 font-bold uppercase text-[10px]">Total Amount</span>
               <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">${total.toFixed(2)}</span>
             </div>
-            <button 
-              disabled={cart.length === 0 || !canCreateSale}
+            <button
+              disabled={cart.length === 0 || !canCreateSale || !currencyChosen}
               onClick={handleCheckout}
+              title={!currencyChosen ? 'Select a payment currency first' : undefined}
               className={`w-full py-4 rounded-2xl font-black text-lg transition shadow-xl flex items-center justify-center gap-3
-                ${cart.length === 0 || !canCreateSale ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white active:scale-95'}
+                ${cart.length === 0 || !canCreateSale || !currencyChosen ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white active:scale-95'}
               `}
             >
               <i className="fas fa-receipt"></i> COMPLETE SALE

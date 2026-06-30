@@ -89,7 +89,9 @@ const AnalyticsPage = () => {
   const detail = activeAnalytics?.detail || { sessions: [], sales: [] };
   const detailSessions = detail.sessions || [];
   const detailSales = detail.sales || [];
-  const todayRevenue = activeAnalytics ? activeAnalytics.completedRevenue : 0;
+  const todayRevenue = activeAnalytics ? (activeAnalytics.revenueUsd ?? activeAnalytics.completedRevenue ?? 0) : 0;
+  const todayRate = activeAnalytics?.todayRate ?? null;
+  const unknownCount = activeAnalytics?.unknownTransactionCount ?? 0;
   const netProfit = activeAnalytics ? activeAnalytics.netProfit : 0;
   const monthlyExpenses = activeAnalytics ? activeAnalytics.monthlyExpenses || 0 : 0;
   const salesCapital = dailyBreakdown.reduce((sum, day) => sum + Number(day.salesCapital || 0), 0);
@@ -204,7 +206,13 @@ const AnalyticsPage = () => {
         <StatCard
           title={t('total_revenue')}
           value={formatUsd(todayRevenue)}
-          secondaryValue={formatLocal(todayRevenue)}
+          secondaryValue={
+            dualCurrencyEnabled && todayRate
+              ? `≈ ${Math.round(todayRevenue * todayRate).toLocaleString()} ${localCurrency} (today's rate)`
+              : unknownCount > 0
+              ? `${unknownCount} unknown txn${unknownCount > 1 ? 's' : ''} excluded`
+              : null
+          }
           icon="fa-coins"
           trend={revenueTrend.text}
           trendUp={revenueTrend.up}

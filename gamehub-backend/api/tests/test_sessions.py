@@ -86,6 +86,22 @@ class SessionViewSetTests(BaseAPITestCase):
         self.assertEqual(session.original_payment_amount, Decimal("27600.00"))
         self.assertEqual(session.get_rental_cost(), Decimal("2.00"))
 
+    def test_create_prepaid_session_rejects_missing_payment_currency(self):
+        """Prepaid session without paymentCurrency must be rejected at create time."""
+        self.grant_staff_permission(can_start_session=True)
+        self.authenticate('staff')
+        data = {
+            "name": "John Doe",
+            "stationId": "PC-01",
+            "sessionType": Session.SESSION_PREPAID,
+            "prepaidAmount": "10.00",
+            # paymentCurrency deliberately omitted
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("paymentCurrency", response.data)
+        self.assertEqual(Session.objects.count(), 0)
+
     def test_create_session_occupied(self):
         """Creating a session on an occupied station should fail with 400."""
         self.grant_staff_permission(can_start_session=True)
@@ -209,6 +225,20 @@ class SessionViewSetTests(BaseAPITestCase):
         )
         self.assertEqual(custom_price.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_end_session_rejects_missing_payment_currency(self):
+        """Ending a session without paymentCurrency must be rejected with 400."""
+        self.grant_staff_permission(can_end_session=True)
+        self.authenticate('staff')
+        session = Session.objects.create(
+            customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
+        )
+        end_url = f'{self.url}{session.id}/end/'
+        response = self.client.post(end_url, {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        session.refresh_from_db()
+        self.assertIsNone(session.end_time)
+
     def test_end_session_without_discount_permission(self):
         """Staff with can_end_session but NOT can_apply_discount cannot apply discounts."""
         self.grant_staff_permission(can_end_session=True, can_apply_discount=False)
@@ -217,7 +247,7 @@ class SessionViewSetTests(BaseAPITestCase):
             customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
         )
         end_url = f'{self.url}{session.id}/end/'
-        response = self.client.post(end_url, {"discount": "1.00"})
+        response = self.client.post(end_url, {"discount": "1.00", "paymentCurrency": "USD"})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_end_session_with_discount(self):
@@ -228,14 +258,13 @@ class SessionViewSetTests(BaseAPITestCase):
             customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
         )
         end_url = f'{self.url}{session.id}/end/'
-        response = self.client.post(end_url, {"discount": "1.00"})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = self.client.post(end_url, {"discount": "1.00", "paymentCurrency": "USD"})
 
         session.refresh_from_db()
         self.assertIsNotNone(session.end_time)
         self.assertEqual(session.discount, Decimal("1.00"))
         self.assertEqual(session.final_cost, Decimal("0.00"))
-        self.assertEqual(response.data["final_total"], 0.0)
+        self.assertEqual(response.data["final_total"], "0.00")
 
     def test_backend_is_source_of_truth_for_final_billing(self):
         self.grant_staff_permission(can_end_session=True)
@@ -247,12 +276,12 @@ class SessionViewSetTests(BaseAPITestCase):
             prepaid_amount_usd=Decimal("12.00"),
         )
 
-        response = self.client.post(f'{self.url}{session.id}/end/', {})
+        response = self.client.post(f'{self.url}{session.id}/end/', {"paymentCurrency": "USD"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         session.refresh_from_db()
         self.assertEqual(session.final_cost, Decimal("12.00"))
-        self.assertEqual(response.data["final_total"], 12.0)
+        self.assertEqual(response.data["final_total"], "12.00")
         self.assertEqual(response.data["payment_method"], "CASH")
 
     def test_end_session_rejects_negative_discount(self):
@@ -262,7 +291,8 @@ class SessionViewSetTests(BaseAPITestCase):
             customer_name="John", resource_unit=self.ru1, session_type=Session.SESSION_POSTPAID
         )
         end_url = f'{self.url}{session.id}/end/'
-        response = self.client.post(end_url, {"discount": "-1.00"})
+        # paymentCurrency is present so the discount check is reached (order: discount first, then currency)
+        response = self.client.post(end_url, {"discount": "-1.00", "paymentCurrency": "USD"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_session_sensitive_actions_create_audit_logs(self):
@@ -283,7 +313,7 @@ class SessionViewSetTests(BaseAPITestCase):
             f'{self.url}{session_id}/add_order/',
             {"inventoryItemId": self.item1.id, "quantity": 1},
         )
-        self.client.post(f'{self.url}{session_id}/end/', {"discount": "1.00"})
+        self.client.post(f'{self.url}{session_id}/end/', {"discount": "1.00", "paymentCurrency": "USD"})
 
         descriptions = set(AuditLog.objects.values_list("description", flat=True))
         self.assertIn("Started session.", descriptions)

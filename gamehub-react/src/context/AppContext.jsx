@@ -1086,10 +1086,9 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const makeDirectSale = async (items) => {
+  const makeDirectSale = async (items, paymentCurrency = 'USD') => {
     try {
-      // items: [{ id, quantity }]
-      const response = await axios.post('/sales/', { items });
+      const response = await axios.post('/sales/', { items, paymentCurrency });
       await fetchData();
       return { success: true, data: response.data };
     } catch (e) {
@@ -1241,9 +1240,9 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const endSession = async (sessionId, discount = 0) => {
+  const endSession = async (sessionId, discount = 0, paymentCurrency = 'USD') => {
     try {
-      const res = await axios.post(`/sessions/${sessionId}/end/`, { discount });
+      const res = await axios.post(`/sessions/${sessionId}/end/`, { discount, paymentCurrency });
       // Update local state smoothly
       setSessions(prev => prev.map(s => s.id === sessionId ? normalizeSession(res.data) : s));
     } catch (e) {

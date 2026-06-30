@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework import serializers, status, viewsets
 from rest_framework.response import Response
 
+from api.currency import frozen_rate_for_currency, round_money
 from api.models import AuditLog, InventoryItem, Sale, SaleItem
 from api.pagination import StandardResultsSetPagination
 from api.serializers import SaleSerializer
@@ -44,11 +45,29 @@ class SaleViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
         if not items_data:
             raise serializers.ValidationError({"items": "At least one item is required."})
 
+        # Phase 1: payment_currency is required — reject before touching the DB
+        payment_currency = request.data.get("paymentCurrency")
+        if not payment_currency or not str(payment_currency).strip():
+            raise serializers.ValidationError(
+                {"paymentCurrency": "Payment currency is required."}
+            )
+        payment_currency = str(payment_currency).strip().upper()
+
+        from api.models.core_model import CurrencySettings
+        settings = CurrencySettings.get_solo()
+        # Phase 2: always freeze a rate — never NULL; 1 for USD, configured rate for local
+        exchange_rate = frozen_rate_for_currency(payment_currency, settings)
+
         total_price = Decimal("0.00")
         total_cost = Decimal("0.00")
         audit_items = []
 
-        sale = Sale.objects.create(user=request.user)
+        sale = Sale.objects.create(
+            user=request.user,
+            payment_currency=payment_currency,
+            paid_amount=Decimal("0.00"),  # updated after items are totalled
+            exchange_rate=exchange_rate,
+        )
 
         for item in items_data:
             item_id = item.get("id")
@@ -107,7 +126,9 @@ class SaleViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
 
         sale.total_price = max(Decimal("0.00"), total_price)
         sale.total_cost = max(Decimal("0.00"), total_cost)
-        sale.save(update_fields=["total_price", "total_cost"])
+        # Phase 6: server computes paid_amount from frozen rate — never trust client value
+        sale.paid_amount = round_money(sale.total_price * exchange_rate)
+        sale.save(update_fields=["total_price", "total_cost", "paid_amount"])
 
         # Build human-readable sold items text, e.g. "2x Coffee and 1x Water" or "Coffee"
         def _natural_join(parts):

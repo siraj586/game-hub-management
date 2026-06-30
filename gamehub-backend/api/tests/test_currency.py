@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import status
 
-from api.currency import convert_money, local_to_usd, usd_to_local
+from api.currency import convert_money, frozen_rate_for_currency, local_to_usd, usd_to_local
 from api.models import CurrencySettings
 from .base import BaseAPITestCase
 
@@ -67,6 +67,43 @@ class CurrencySettingsTests(BaseAPITestCase):
             convert_money(Decimal("27600"), "SYP", "USD", settings),
             Decimal("2.00"),
         )
+
+    def test_frozen_rate_is_always_set_and_never_null(self):
+        """Phase 2: exchange_rate must be 1 for USD and the configured rate for local."""
+        settings = CurrencySettings.get_solo()
+
+        # USD always → 1
+        self.assertEqual(frozen_rate_for_currency("USD", settings), Decimal("1"))
+
+        # No local currency configured → still 1
+        self.assertEqual(frozen_rate_for_currency("SYP", settings), Decimal("1"))
+
+        # Local currency configured
+        settings.local_currency_enabled = True
+        settings.local_currency_code = "SYP"
+        settings.local_units_per_usd = Decimal("13800")
+        settings.save()
+        self.assertEqual(frozen_rate_for_currency("SYP", settings), Decimal("13800"))
+        self.assertEqual(frozen_rate_for_currency("USD", settings), Decimal("1"))
+
+    def test_sale_freezes_exchange_rate_on_creation(self):
+        """Phase 2: a USD sale must write exchange_rate=1, not NULL."""
+        from api.models import Sale, InventoryCategory, InventoryItem
+        self.grant_staff_permission(can_create_standalone_sale=True)
+        self.authenticate("staff")
+        cat = InventoryCategory.objects.create(name="Test", code="TST")
+        item = InventoryItem.objects.create(
+            category=cat, name="Item", sale_price="1.00", quantity_in_stock=5
+        )
+        response = self.client.post(
+            "/api/sales/",
+            {"items": [{"id": item.id, "quantity": 1}], "paymentCurrency": "USD"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        sale = Sale.objects.get()
+        self.assertIsNotNone(sale.exchange_rate)
+        self.assertEqual(sale.exchange_rate, Decimal("1"))
 
     def test_staff_can_use_conversion_calculator(self):
         settings = CurrencySettings.get_solo()

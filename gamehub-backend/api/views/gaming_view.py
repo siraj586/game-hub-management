@@ -7,6 +7,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from api.currency import frozen_rate_for_currency, round_money
 from api.models import AuditLog, InventoryItem, ResourceUnit, Session, SessionOrder
 from api.pagination import StandardResultsSetPagination
 from api.serializers import SessionSerializer
@@ -127,7 +128,7 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
             return
 
         active_ms = session.get_active_ms(session.end_time)
-        session.final_duration_minutes = Decimal(str(active_ms / 60000)).quantize(
+        session.final_duration_minutes = (Decimal(active_ms) / Decimal(60000)).quantize(
             Decimal("0.01")
         )
         session.final_cost = session.get_live_cost(session.end_time)
@@ -293,7 +294,27 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
                 {"session_id": session.id, "discount": str(parsed_discount)},
             )
 
+        # Phase 1: paymentCurrency is required to finalize any session
+        payment_currency = request.data.get("paymentCurrency")
+        if not payment_currency or not str(payment_currency).strip():
+            return Response(
+                {"error": "paymentCurrency is required to finalize a session."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payment_currency = str(payment_currency).strip().upper()
+
+        from api.models.core_model import CurrencySettings
+        settings = CurrencySettings.get_solo()
+
         session.end_session()
+
+        # Phase 2: always freeze a rate — never NULL; 1 for USD, configured rate for local
+        session.exchange_rate = frozen_rate_for_currency(payment_currency, settings)
+        session.original_payment_currency = payment_currency
+        # Phase 6: server computes the paid amount from the frozen rate — never trust the client
+        session.original_payment_amount = round_money(session.final_cost * session.exchange_rate)
+        session.save(update_fields=["original_payment_currency", "original_payment_amount", "exchange_rate"])
+
         self._audit(
             AuditLog.ACTION_UPDATE,
             str(session),

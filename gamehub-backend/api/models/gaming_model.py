@@ -34,6 +34,7 @@ class Session(models.Model):
     original_payment_amount = models.DecimalField(
         max_digits=18, decimal_places=2, null=True, blank=True
     )
+    exchange_rate = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
     duration_hours = models.DecimalField(
         max_digits=6, decimal_places=2, null=True, blank=True
     )
@@ -98,7 +99,7 @@ class Session(models.Model):
             return (prepaid_hours * self.effective_hourly_rate).quantize(Decimal("0.01"))
 
         active_ms = self.get_active_ms(ref_time)
-        active_hours = Decimal(str(active_ms / (1000 * 3600)))
+        active_hours = Decimal(active_ms) / Decimal(3600000)
         return (active_hours * self.effective_hourly_rate).quantize(Decimal("0.01"))
 
     def get_orders_cost(self) -> Decimal:
@@ -134,7 +135,7 @@ class Session(models.Model):
             self.last_pause_time = None
 
         active_ms = self.get_active_ms(ref_time)
-        self.final_duration_minutes = Decimal(str(active_ms / 60000)).quantize(
+        self.final_duration_minutes = (Decimal(active_ms) / Decimal(60000)).quantize(
             Decimal("0.01")
         )
         self.final_cost = self.get_live_cost(ref_time)

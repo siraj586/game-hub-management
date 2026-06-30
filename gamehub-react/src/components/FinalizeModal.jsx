@@ -4,8 +4,11 @@ import { formatDuration } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 
 const FinalizeModal = ({ sessionId, onClose }) => {
-  const { sessions, endSession, permissions, systemName, currentUser, showAlert, showConfirm, t } = useApp();
+  const { sessions, endSession, permissions, systemName, currentUser, showAlert, showConfirm, t, currencySettings } = useApp();
   const [discount, setDiscount] = useState(0);
+  // Phase 3: null until cashier explicitly picks; only pre-select when USD is the only option
+  const dualCurrencyEnabled = currencySettings?.local_currency_enabled;
+  const [paymentCurrency, setPaymentCurrency] = useState(dualCurrencyEnabled ? null : 'USD');
   const receiptRef = useRef(null);
 
   const session = sessions.find(s => s.id === sessionId);
@@ -15,15 +18,22 @@ const FinalizeModal = ({ sessionId, onClose }) => {
 
   const elapsedMinutes = session.elapsedTime ?? session.durationMinutes ?? 0;
   const backendTotal = Number(session.finalTotal ?? session.liveCost ?? session.totalCost ?? 0);
-  const itemsCost = session.ordersCost || 0;
-  const playCost = Math.max(0, backendTotal + (session.discount || 0) - itemsCost);
+  const itemsCost = Number(session.ordersCost ?? 0);
+  const playCost = Math.max(0, backendTotal - itemsCost);
   const subtotal = Math.max(0, playCost + itemsCost);
   const appliedDiscount = session.endTime || canApplyDiscount
-    ? (session.endTime ? (session.discount || 0) : Math.min(Math.max(0, discount), subtotal))
+    ? (session.endTime ? Number(session.discount ?? 0) : Math.min(Math.max(0, discount), subtotal))
     : 0;
   const total = Math.max(0, backendTotal - (session.endTime ? 0 : appliedDiscount));
+  
+  const localCurrencyCode = currencySettings?.local_currency_code || 'LOCAL';
+  const localRate = Number(currencySettings?.local_units_per_usd || 1);
+  const localTotal = total * localRate;
+
+  const currencyChosen = !!paymentCurrency;
 
   const handleEnd = async () => {
+    if (!currencyChosen) return;
     const confirmed = await showConfirm({
       title: t('dialog_end'),
       message: t('confirm_finalize_session'),
@@ -31,7 +41,7 @@ const FinalizeModal = ({ sessionId, onClose }) => {
       variant: 'danger',
     });
     if (!confirmed) return;
-    endSession(sessionId, appliedDiscount);
+    endSession(sessionId, appliedDiscount, paymentCurrency);
     onClose();
   };
 
@@ -112,28 +122,57 @@ const FinalizeModal = ({ sessionId, onClose }) => {
                 </div>
               )}
               <div className="receipt-item text-xl font-black mt-1 text-rose-600">
-                <span>TOTAL:</span><span>${total.toFixed(2)}</span>
+                <span>TOTAL:</span><span>{!session.endTime ? '~' : ''}${total.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="receipt-footer mt-4">
               <p className="text-[9px] text-gray-400">THANK YOU FOR GAMING!</p>
+              {!session.endTime && (
+                <p className="text-[8px] text-orange-400 italic mt-1">
+                  * Amounts are estimates — server confirms on checkout
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Discount Input - only for active sessions */}
-          {!session.endTime && canApplyDiscount && (
-            <div className="px-2">
-              <label className="block text-[11px] font-bold dark:text-gray-400 text-gray-500 mb-1">Apply Discount ($)</label>
-              <input
-                type="number"
-                min="0"
-                max={subtotal}
-                step="0.5"
-                value={discount}
-                onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-rose-500 outline-none transition dark:bg-gray-700 bg-gray-50 dark:border-gray-600 border-gray-300 dark:text-white text-sm font-bold"
-              />
+          {/* Checkout Controls */}
+          {!session.endTime && (
+            <div className="space-y-3 px-2">
+              {canApplyDiscount && (
+                <div>
+                  <label className="block text-[11px] font-bold dark:text-gray-400 text-gray-500 mb-1">Apply Discount ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={subtotal}
+                    step="0.5"
+                    value={discount}
+                    onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-rose-500 outline-none transition dark:bg-gray-700 bg-gray-50 dark:border-gray-600 border-gray-300 dark:text-white text-sm font-bold"
+                  />
+                </div>
+              )}
+
+              {dualCurrencyEnabled && (
+                <div>
+                  <label className="block text-[11px] font-bold dark:text-gray-400 text-gray-500 mb-1">
+                    Payment Method <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={paymentCurrency ?? ''}
+                    onChange={e => setPaymentCurrency(e.target.value || null)}
+                    className={`w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-rose-500 outline-none transition dark:bg-gray-700 bg-gray-50 dark:border-gray-600 border-gray-300 dark:text-white text-sm font-bold ${!currencyChosen ? 'border-red-400 dark:border-red-500' : ''}`}
+                  >
+                    <option value="">— select payment currency —</option>
+                    <option value="USD">Pay in USD (~${total.toFixed(2)})</option>
+                    <option value={localCurrencyCode}>Pay in {localCurrencyCode} (~{Math.round(localTotal).toLocaleString()})</option>
+                  </select>
+                  {!currencyChosen && (
+                    <p className="text-red-500 text-[10px] mt-1 font-bold">Select a payment currency to continue.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -147,7 +186,16 @@ const FinalizeModal = ({ sessionId, onClose }) => {
             <i className="fas fa-download text-blue-500"></i> Receipt
           </button>
           {!session.endTime && canEndSession && (
-            <button onClick={handleEnd} className="px-5 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-lg text-xs font-bold transition shadow-lg flex items-center gap-2">
+            <button
+              onClick={handleEnd}
+              disabled={!currencyChosen}
+              title={!currencyChosen ? 'Select a payment currency first' : undefined}
+              className={`px-5 py-2 rounded-lg text-xs font-bold transition shadow-lg flex items-center gap-2 ${
+                currencyChosen
+                  ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white'
+                  : 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed opacity-60'
+              }`}
+            >
               <i className="fas fa-check-double"></i> Checkout & End
             </button>
           )}

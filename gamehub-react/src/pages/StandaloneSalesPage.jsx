@@ -5,10 +5,16 @@ import InventoryManager from '../components/InventoryManager';
 import { hasAnyPermission, hasPermission } from '../utils/permissions';
 
 const StandaloneSalesPage = () => {
-  const { cafeItems, makeDirectSale, permissions, systemName, currentUser, t } = useApp();
+  const { cafeItems, makeDirectSale, permissions, systemName, currentUser, t, currencySettings } = useApp();
   const [cart, setCart] = useState([]);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [salesMode, setSalesMode] = useState('sell');
+  const dualCurrencyEnabled = currencySettings?.local_currency_enabled;
+  const localCurrencyCode = currencySettings?.local_currency_code || 'LOCAL';
+  const localRate = Number(currencySettings?.local_units_per_usd || 1);
+  // Phase 3: null until cashier explicitly picks when dual-currency is active
+  const [paymentCurrency, setPaymentCurrency] = useState(dualCurrencyEnabled ? null : 'USD');
+  const currencyChosen = !!paymentCurrency;
   const canCreateSale = hasPermission(permissions, 'can_create_standalone_sale');
   const canManageInventory = hasAnyPermission(permissions, ['can_manage_inventory', 'can_update_stock']);
   const activeMode = salesMode === 'inventory' && canManageInventory
@@ -44,11 +50,13 @@ const StandaloneSalesPage = () => {
     });
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalCents = cart.reduce((sum, item) => sum + Math.round(Number(item.price) * 100) * item.quantity, 0);
+  const total = totalCents / 100;
+  const localTotal = Math.round(totalCents * localRate / 100);
 
   const handleCheckout = async () => {
-    if (cart.length === 0 || !canCreateSale) return;
-    const result = await makeDirectSale(cart);
+    if (cart.length === 0 || !canCreateSale || !currencyChosen) return;
+    const result = await makeDirectSale(cart, paymentCurrency);
     if (result.success) {
       setLastReceipt({
         ...result.data,
@@ -170,12 +178,32 @@ const StandaloneSalesPage = () => {
               <span className="text-xs font-bold uppercase text-gray-500">{t('total')}</span>
               <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${total.toFixed(2)}</span>
             </div>
+            {dualCurrencyEnabled && (
+              <div className="mb-3">
+                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                  Payment Currency <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={paymentCurrency ?? ''}
+                  onChange={e => setPaymentCurrency(e.target.value || null)}
+                  className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition dark:bg-gray-700 bg-gray-50 dark:border-gray-600 border-gray-300 dark:text-white ${!currencyChosen ? 'border-red-400 dark:border-red-500' : ''}`}
+                >
+                  <option value="">— select —</option>
+                  <option value="USD">USD (${total.toFixed(2)})</option>
+                  <option value={localCurrencyCode}>{localCurrencyCode} ({localTotal.toLocaleString()})</option>
+                </select>
+                {!currencyChosen && (
+                  <p className="text-red-500 text-[10px] mt-1 font-bold">Select a payment currency to continue.</p>
+                )}
+              </div>
+            )}
             <button
               type="button"
-              disabled={cart.length === 0 || !canCreateSale}
+              disabled={cart.length === 0 || !canCreateSale || !currencyChosen}
               onClick={handleCheckout}
+              title={!currencyChosen ? 'Select a payment currency first' : undefined}
               className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition
-                ${cart.length === 0 || !canCreateSale
+                ${cart.length === 0 || !canCreateSale || !currencyChosen
                   ? 'opacity-50 cursor-not-allowed bg-gray-300 dark:bg-gray-700'
                   : 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:shadow-lg active:scale-95'
                 }`}
