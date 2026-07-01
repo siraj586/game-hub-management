@@ -205,6 +205,9 @@ class AnalyticsView(APIView):
                 "sessionProductRevenue": _money(_session_orders_total(session)),
                 "sessionProductCost": _money(_session_orders_cost(session)),
                 "finalTotal": _money(session.final_cost),
+                "paymentCurrency": session.original_payment_currency or "UNKNOWN",
+                "paidAmount": _money(session.original_payment_amount) if session.original_payment_amount is not None else None,
+                "exchangeRate": float(session.exchange_rate) if session.exchange_rate is not None else None,
                 "orders": [
                     {
                         "id": order.id,
@@ -229,6 +232,9 @@ class AnalyticsView(APIView):
                 "totalPrice": _money(sale.total_price),
                 "totalCost": _money(sale.total_cost),
                 "profit": _money(sale.profit),
+                "paymentCurrency": sale.payment_currency or "UNKNOWN",
+                "paidAmount": _money(sale.paid_amount) if sale.paid_amount is not None else None,
+                "exchangeRate": float(sale.exchange_rate) if sale.exchange_rate is not None else None,
                 "items": [
                     {
                         "id": item.id,
