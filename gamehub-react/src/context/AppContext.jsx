@@ -9,7 +9,7 @@ export const useApp = () => useContext(AppContext);
 const UNAUTHORIZED_MESSAGE = 'ليس لديك صلاحية لتنفيذ هذه العملية';
 
 // Setup Axios
-axios.defaults.baseURL = 'http://127.0.0.1:8000/api';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const normalizeSession = (session) => ({
   ...session,

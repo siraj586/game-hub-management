@@ -10,7 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
+import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,13 +24,51 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-import os
-import sys
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-dev-only')
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+def _load_env_file(path):
+    """Read KEY=VALUE lines from a local .env file. Real environment variables win."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
-ALLOWED_HOSTS = []
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name, str(default))
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_list(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return list(default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+_load_env_file(BASE_DIR / ".env")
+
+RUNNING_TESTS = "test" in sys.argv
+
+# SECURITY WARNING: don't run with debug turned on in production!
+# Off unless DEBUG=True is set (see .env.example), so a machine with no
+# configuration never runs in development mode by accident.
+DEBUG = _env_bool("DEBUG", False)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG or RUNNING_TESTS:
+        SECRET_KEY = "django-insecure-local-dev-only"
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY is not set. Copy .env.example to .env and set SECRET_KEY, "
+            "or set DEBUG=True for local development."
+        )
+
+ALLOWED_HOSTS = _env_list("GAMEHUB_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 
 
 # Application definition
@@ -131,15 +173,26 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "api.User"
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = _env_list(
+    "GAMEHUB_CORS_ORIGINS",
+    ["http://localhost:5173", "http://127.0.0.1:5173"],
+)
+
+# Turn on when the app is served over HTTPS (GAMEHUB_HTTPS=True).
+if _env_bool("GAMEHUB_HTTPS", False):
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
     ],
+    # Limits password guessing on the login and first-time setup endpoints.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": os.environ.get("GAMEHUB_LOGIN_RATE", "10/min"),
+    },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 

@@ -1,11 +1,12 @@
 from django.db import transaction
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from api.models import FeatureFlag, User
+from api.throttles import LoginRateThrottle
 
 
 def _shop_name_from_flags():
@@ -40,6 +41,7 @@ def bootstrap_status(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 @transaction.atomic
 def bootstrap_register(request):
     if User.objects.filter(role=User.ROLE_OWNER).exists():

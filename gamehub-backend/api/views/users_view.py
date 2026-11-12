@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from api.models import User, FeatureFlag, StaffPermission
 from .auth_view import _shop_name_from_flags
 from api.serializers import UserSerializer
+from api.throttles import LoginRateThrottle
 from .permissions_view import IsOwner
 
 
@@ -42,6 +43,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class CustomObtainAuthToken(ObtainAuthToken):
+    throttle_classes = [LoginRateThrottle]
+
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(
             data=request.data, context={"request": request}
