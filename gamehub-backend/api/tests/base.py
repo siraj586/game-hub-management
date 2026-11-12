@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
 from api.models import User, StaffPermission
@@ -5,6 +6,7 @@ from api.models import User, StaffPermission
 
 class BaseAPITestCase(APITestCase):
     def setUp(self):
+        cache.clear()  # throttle counters must not leak between tests
         self.owner = User.objects.create_user(
             username="owner", password="password", role=User.ROLE_OWNER
         )

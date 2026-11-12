@@ -76,6 +76,12 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Create your local settings file:
+
+```powershell
+copy .env.example .env
+```
+
 Apply migrations:
 
 ```powershell
@@ -213,9 +219,12 @@ python manage.py check
 The current local development settings use:
 
 - SQLite database
-- `DEBUG = True`
+- `DEBUG=True` from a local `.env` file (copy `.env.example` to `.env`)
 - CORS allowed for local frontend development
 - Token authentication
+- Login and first-time setup limited to 10 attempts per minute per IP address
+
+Without a `.env` file the server refuses to start: `DEBUG` is off by default and `SECRET_KEY` is then required.
 
 Before production or desktop packaging, review:
 
@@ -251,6 +260,12 @@ If frontend requests fail:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `DEBUG` | `False` | Set to `True` for local development only. |
+| `SECRET_KEY` | none | Required when `DEBUG` is `False`. |
+| `GAMEHUB_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated hosts the backend answers for. Add the shop PC's LAN IP or your domain. |
+| `GAMEHUB_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated frontend origins allowed to call the API. |
+| `GAMEHUB_HTTPS` | `False` | Set to `True` when served over HTTPS: secure cookies, HTTPS redirect, HSTS. |
+| `GAMEHUB_LOGIN_RATE` | `10/min` | Login attempts allowed per IP address. |
 | `GAMEHUB_TIME_ZONE` | `Asia/Beirut` | Time zone used for dates and the business day. |
 | `GAMEHUB_BACKUP_DIR` | `backups/` | Backup folder. Point it at a USB or cloud-synced folder so a copy survives a disk failure. |
 | `GAMEHUB_AUTO_BACKUP` | `True` | Set to `False` to turn off the automatic daily backup. |

@@ -62,11 +62,7 @@ Open the app:
 http://127.0.0.1:5173/
 ```
 
-The frontend expects the backend API base URL to be configured in:
-
-```text
-src/context/AppContext.jsx
-```
+The backend API base URL comes from the `VITE_API_URL` variable. To change it, copy `.env.example` to `.env.local` and edit the value.
 
 Default API URL:
 
@@ -161,7 +157,7 @@ The UI respects backend permissions and hides actions the current user should no
 If login or API calls fail:
 
 - Make sure the backend server is running.
-- Confirm the API base URL in `src/context/AppContext.jsx`.
+- Confirm `VITE_API_URL` in `.env.local` (default `http://127.0.0.1:8000/api`).
 - Check browser console network errors.
 - Confirm CORS is enabled in the backend local settings.
 
