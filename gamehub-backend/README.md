@@ -23,6 +23,10 @@ The system is currently designed for one game center, with simple workflows suit
 - Optional monthly expense categories deducted from monthly net profit.
 - USD base currency with optional SYP or LBP conversion support.
 - Audit logs for sensitive actions.
+- Business day with a configurable start hour, so late-night sessions stay on the same day.
+- Harvest Day with a cash count, a warning about running sessions, and report updates that keep earlier figures.
+- Daily report history with Excel export.
+- Automatic daily database backups, plus manual backup, download and restore for the owner.
 - OpenAPI schema and Swagger/Redoc documentation.
 
 ## Tech Stack
@@ -243,3 +247,12 @@ If frontend requests fail:
 - Confirm frontend Axios base URL points to `/api`.
 - Check CORS settings in `gamehub_project/settings.py`.
 
+## Environment Variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GAMEHUB_TIME_ZONE` | `Asia/Beirut` | Time zone used for dates and the business day. |
+| `GAMEHUB_BACKUP_DIR` | `backups/` | Backup folder. Point it at a USB or cloud-synced folder so a copy survives a disk failure. |
+| `GAMEHUB_AUTO_BACKUP` | `True` | Set to `False` to turn off the automatic daily backup. |
+
+To recover on a new PC, copy a backup file into the backup folder, then choose Restore under Settings > Day & Backups.

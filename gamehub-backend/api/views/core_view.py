@@ -1,11 +1,12 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.dateparse import parse_date
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.currency import get_currency_settings
+from api.models.core_model import BusinessDaySettings
 from api.models import MonthlyExpense, MonthlyExpenseSettings, FeatureFlag
 from api.serializers import (
     CurrencySettingsSerializer,
@@ -46,6 +47,28 @@ class CurrencySettingsView(APIView):
     def put(self, request):
         settings = get_currency_settings()
         serializer = CurrencySettingsSerializer(settings, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class BusinessDaySettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessDaySettings
+        fields = ["start_hour", "updated_at"]
+        read_only_fields = ["updated_at"]
+
+
+class BusinessDaySettingsView(APIView):
+    permission_classes = [IsOwner]
+
+    def get(self, request):
+        return Response(BusinessDaySettingsSerializer(BusinessDaySettings.get_solo()).data)
+
+    def patch(self, request):
+        serializer = BusinessDaySettingsSerializer(
+            BusinessDaySettings.get_solo(), data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

@@ -1,12 +1,13 @@
 from datetime import timedelta
 
-from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
 
+from api.business_day import business_today
+
 
 def get_date_range_from_request(request):
-    today = timezone.localdate()
+    today = business_today()
     period = (request.query_params.get("period") or "today").strip().lower()
 
     if period == "today":

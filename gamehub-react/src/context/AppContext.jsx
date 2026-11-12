@@ -360,7 +360,54 @@ const translations = {
     print: "Print",
     harvest_day: "Harvest Day",
     harvesting: "Harvesting...",
-    confirm_close_day: "Do you want to harvest the day and close the daily report? All current figures will be recorded.",
+    harvest_update: "Update report",
+    harvest_has_changes: "There is new activity since this day was closed. Saving updates the report and keeps the old figures.",
+    harvest_already_closed: "This day is already closed and nothing has changed since then.",
+    harvest_clears_activity: "Recent Activity will be cleared. Analytics data is kept.",
+    running_sessions_warning: "{count} session(s) still running. They join the report only after they end.",
+    cash_count: "Cash count",
+    cash_count_hint: "Count the cash in the drawer. Leave it empty to skip.",
+    expected_cash: "Expected",
+    counted_cash: "Counted",
+    cash_difference: "Difference",
+    nav_reports: "Reports",
+    daily_reports_title: "Daily Reports",
+    daily_reports_subtitle: "Every harvested day, with its totals and cash count.",
+    report_from: "From",
+    report_to: "To",
+    report_date: "Date",
+    closed_by: "Closed by",
+    not_counted: "Not counted",
+    running_at_close: "Running at close",
+    report_updates: "Times updated",
+    no_reports: "No reports yet. Use Harvest Day in Analytics.",
+    reports_load_failed: "Could not load the reports.",
+    export_excel: "Excel",
+    export_pdf: "PDF",
+    export_failed: "Could not export the reports.",
+    session_ended_alert_title: "Session time is up",
+    dismiss: "Dismiss",
+    hide_session_title: "Remove from Recent Activity",
+    hide_session_hint: "Its revenue stays in analytics and reports. To change the amount, use Correct session instead.",
+    hide_reason_label: "Reason",
+    hide_session_confirm: "Remove from list",
+    tab_day_backups: "Day & Backups",
+    business_day_title: "Business day",
+    business_day_hint: "Sessions ending before this hour count for the previous day. Choose a time after you close.",
+    business_day_start: "Day starts at",
+    business_day_saved: "Business day saved.",
+    backups_title: "Backups",
+    backups_hint: "One backup is made automatically each day while the app is in use. Download a copy regularly and keep it outside this PC.",
+    backup_now: "Back up now",
+    backup_download: "Download",
+    backup_restore: "Restore",
+    backup_kind_auto: "Automatic",
+    backup_kind_manual: "Manual",
+    "backup_kind_pre-restore": "Before a restore",
+    confirm_restore: "Replace all current data with the backup from {date}? A copy of the current data is saved first.",
+    no_backups: "No backups yet.",
+    backup_failed: "The backup failed.",
+    restore_failed: "The restore failed.",
     dialog_ok: "OK",
     dialog_cancel: "Cancel",
     dialog_notice: "Notice",
@@ -373,12 +420,11 @@ const translations = {
     correct_session: "Correct session",
     dialog_end: "End Session",
     clear_all_activity: "Clear All",
-    confirm_clear_activity: "Clear all recent activity? This will permanently remove these records.",
+    confirm_clear_activity: "Clear all recent activity? Sessions will be removed from this list, but analytics data is kept.",
     activity_cleared_success: "Recent activity cleared.",
     error_clearing_activity: "Error clearing recent activity",
     confirm_delete_user: "Delete user?",
     confirm_clear_logs: "Clear all logs permanently?",
-    confirm_delete_session: "Delete this session permanently?",
     confirm_finalize_session: "Are you sure you want to end this session? This will finalize all costs.",
     confirm_end_session_now: "End this session now?",
     confirm_remove_order: "Permanently remove {item} order and restore stock?",
@@ -692,7 +738,54 @@ const translations = {
     print: "طباعة",
     harvest_day: "حصاد اليوم",
     harvesting: "جاري الحصاد...",
-    confirm_close_day: "هل تريد حصاد اليوم وإغلاق التقرير اليومي؟ سيتم تسجيل جميع الأرقام الحالية.",
+    harvest_update: "تحديث التقرير",
+    harvest_has_changes: "في نشاط جديد بعد إغلاق هذا اليوم. الحفظ يحدّث التقرير ويحتفظ بالأرقام القديمة.",
+    harvest_already_closed: "هذا اليوم مغلق ولم يتغير شيء منذ إغلاقه.",
+    harvest_clears_activity: "سيتم مسح النشاط الأخير مع الاحتفاظ ببيانات التحليلات.",
+    running_sessions_warning: "{count} جلسة لا تزال شغالة. لن تدخل التقرير إلا بعد انتهائها.",
+    cash_count: "جرد الكاش",
+    cash_count_hint: "عدّ المبلغ الموجود بالصندوق. اتركه فارغًا لتخطي الجرد.",
+    expected_cash: "المتوقع",
+    counted_cash: "المعدود",
+    cash_difference: "الفرق",
+    nav_reports: "التقارير",
+    daily_reports_title: "التقارير اليومية",
+    daily_reports_subtitle: "كل يوم تم حصاده مع مجاميعه وجرد الكاش.",
+    report_from: "من",
+    report_to: "إلى",
+    report_date: "التاريخ",
+    closed_by: "أغلقه",
+    not_counted: "لم يتم الجرد",
+    running_at_close: "جلسات شغالة عند الإغلاق",
+    report_updates: "عدد التحديثات",
+    no_reports: "لا توجد تقارير بعد. استخدم حصاد اليوم من الإحصائيات.",
+    reports_load_failed: "تعذر تحميل التقارير.",
+    export_excel: "Excel",
+    export_pdf: "PDF",
+    export_failed: "تعذر تصدير التقارير.",
+    session_ended_alert_title: "انتهى وقت الجلسة",
+    dismiss: "إخفاء",
+    hide_session_title: "إزالة من النشاط الأخير",
+    hide_session_hint: "يبقى إيرادها في التحليلات والتقارير. لتغيير المبلغ استخدم تصحيح الجلسة.",
+    hide_reason_label: "السبب",
+    hide_session_confirm: "إزالة من القائمة",
+    tab_day_backups: "اليوم والنسخ الاحتياطي",
+    business_day_title: "يوم العمل",
+    business_day_hint: "الجلسات التي تنتهي قبل هذه الساعة تُحسب على اليوم السابق. اختر وقتًا بعد إغلاق الصالة.",
+    business_day_start: "يبدأ اليوم الساعة",
+    business_day_saved: "تم حفظ يوم العمل.",
+    backups_title: "النسخ الاحتياطية",
+    backups_hint: "تُنشأ نسخة تلقائية كل يوم أثناء استخدام البرنامج. نزّل نسخة بانتظام واحفظها خارج هذا الجهاز.",
+    backup_now: "نسخ احتياطي الآن",
+    backup_download: "تنزيل",
+    backup_restore: "استرجاع",
+    backup_kind_auto: "تلقائية",
+    backup_kind_manual: "يدوية",
+    "backup_kind_pre-restore": "قبل الاسترجاع",
+    confirm_restore: "هل تريد استبدال كل البيانات الحالية بنسخة {date}؟ سيتم حفظ نسخة من البيانات الحالية أولًا.",
+    no_backups: "لا توجد نسخ احتياطية بعد.",
+    backup_failed: "فشل النسخ الاحتياطي.",
+    restore_failed: "فشل الاسترجاع.",
     dialog_ok: "حسنًا",
     dialog_cancel: "إلغاء",
     dialog_notice: "تنبيه",
@@ -705,12 +798,11 @@ const translations = {
     correct_session: "تصحيح الجلسة",
     dialog_end: "إنهاء الجلسة",
     clear_all_activity: "مسح الكل",
-    confirm_clear_activity: "هل تريد مسح كل النشاط الأخير؟ سيؤدي ذلك إلى إزالة هذه السجلات نهائيًا.",
+    confirm_clear_activity: "هل تريد مسح كل النشاط الأخير؟ ستختفي الجلسات من هذه القائمة مع الاحتفاظ ببيانات التحليلات.",
     activity_cleared_success: "تم مسح النشاط الأخير.",
     error_clearing_activity: "حدث خطأ أثناء المسح",
     confirm_delete_user: "هل تريد حذف المستخدم؟",
     confirm_clear_logs: "هل تريد مسح كل السجلات نهائيًا؟",
-    confirm_delete_session: "هل تريد حذف هذه الجلسة نهائيًا؟",
     confirm_finalize_session: "هل أنت متأكد من إنهاء هذه الجلسة؟ سيتم تثبيت كل التكاليف.",
     confirm_end_session_now: "هل تريد إنهاء هذه الجلسة الآن؟",
     confirm_remove_order: "هل تريد إزالة طلب {item} نهائيًا وإرجاع الكمية إلى المخزون؟",
@@ -1199,11 +1291,10 @@ export const AppProvider = ({ children }) => {
     });
     if (!confirmed) return false;
     try {
-      const ended = sessions.filter(s => s.endTime);
-      // Attempt to delete ended sessions on the server; ignore individual failures
-      await Promise.all(ended.map(s => axios.delete(`/sessions/${s.id}/`).catch(() => null)));
-      // Update local state immediately
-      setSessions(prev => prev.filter(s => !s.endTime));
+      await axios.post('/sessions/clear_activity/');
+      setSessions(prev => prev.map(s => (
+        s.endTime ? { ...s, metadata: { ...s.metadata, hidden_from_activity: true } } : s
+      )));
       await showAlert(t('activity_cleared_success'));
       return true;
     } catch (e) {
@@ -1287,19 +1378,14 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const deleteSession = async (sessionId) => {
-    const confirmed = await showConfirm({
-      title: t('dialog_delete'),
-      message: t('confirm_delete_session'),
-      confirmText: t('dialog_delete'),
-      variant: 'danger',
-    });
-    if (!confirmed) return;
+  const deleteSession = async (sessionId, reason) => {
     try {
-      await axios.delete(`/sessions/${sessionId}/`);
-      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      const res = await axios.delete(`/sessions/${sessionId}/`, { data: { reason } });
+      setSessions(prev => prev.map(s => s.id === sessionId ? normalizeSession(res.data) : s));
+      return true;
     } catch (e) {
-      await showAlert(apiErrorMessage(e, 'Error deleting session'), { title: t('dialog_error'), variant: 'danger' });
+      await showAlert(apiErrorMessage(e, 'Error removing session'), { title: t('dialog_error'), variant: 'danger' });
+      return false;
     }
   };
 

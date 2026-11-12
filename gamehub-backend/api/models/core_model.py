@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator
 from django.db import models
 
 class FeatureFlag(models.Model):
@@ -57,6 +58,10 @@ class DailyReport(models.Model):
     
     net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     active_sessions_at_close = models.IntegerField(default=0)
+
+    # Cash physically counted at closing; null when it was not counted.
+    counted_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    counted_local = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -66,6 +71,27 @@ class DailyReport(models.Model):
 
     def __str__(self):
         return f"Report - {self.date}"
+
+
+class BusinessDaySettings(models.Model):
+    """When a business day starts, so late-night sessions stay on the same day."""
+
+    start_hour = models.PositiveSmallIntegerField(
+        default=4, validators=[MaxValueValidator(23)]
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Business day settings"
+        verbose_name_plural = "Business day settings"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Business day starts at {self.start_hour:02d}:00"
 
 
 class MonthlyExpenseSettings(models.Model):

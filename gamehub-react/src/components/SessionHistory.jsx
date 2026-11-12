@@ -6,12 +6,23 @@ import SessionCorrectionModal from './SessionCorrectionModal';
 const SessionHistory = ({ onViewReceipt }) => {
   const { sessions, deleteSession, permissions, clearAllActivity, t } = useApp();
   const [correctionSession, setCorrectionSession] = useState(null);
-  const todayKey = new Date().toDateString();
+  const [hidingSession, setHidingSession] = useState(null);
+  const [hideReason, setHideReason] = useState('');
   const endedSessions = sessions.filter(
-    s => s.endTime && new Date(s.endTime).toDateString() === todayKey
+    s => s.endTime && !s.metadata?.hidden_from_activity && s.inCurrentBusinessDay
   );
   const canDelete = permissions?.manage_settings;
   const canCorrect = permissions?.manage_settings;
+
+  const closeHideDialog = () => {
+    setHidingSession(null);
+    setHideReason('');
+  };
+
+  const confirmHide = async () => {
+    const hidden = await deleteSession(hidingSession.id, hideReason.trim());
+    if (hidden) closeHideDialog();
+  };
 
   return (
     <div>
@@ -88,9 +99,9 @@ const SessionHistory = ({ onViewReceipt }) => {
                         </button>
                         {canDelete && (
                           <button
-                            onClick={() => deleteSession(session.id)}
+                            onClick={() => setHidingSession(session)}
                             className="text-red-400 hover:text-red-600 transition"
-                            title={t('dialog_delete')}
+                            title={t('hide_session_title')}
                           >
                             <i className="fas fa-trash-alt"></i>
                           </button>
@@ -113,6 +124,40 @@ const SessionHistory = ({ onViewReceipt }) => {
           </table>
         </div>
       </div>
+      {hidingSession && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl p-5 space-y-3">
+            <h2 className="text-lg font-black dark:text-white text-gray-900">{t('hide_session_title')}</h2>
+            <p className="text-sm dark:text-gray-300 text-gray-600">
+              {hidingSession.name} · {hidingSession.stationId}
+            </p>
+            <p className="text-xs dark:text-gray-400 text-gray-500">{t('hide_session_hint')}</p>
+            <label className="block">
+              <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('hide_reason_label')}</span>
+              <textarea
+                autoFocus
+                rows={2}
+                value={hideReason}
+                onChange={(event) => setHideReason(event.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 dark:text-white text-sm"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={closeHideDialog} className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold dark:text-gray-200 text-gray-700">
+                {t('dialog_cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={confirmHide}
+                disabled={!hideReason.trim()}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-black transition disabled:opacity-50"
+              >
+                {t('hide_session_confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SessionCorrectionModal
         session={correctionSession}
         onClose={() => setCorrectionSession(null)}

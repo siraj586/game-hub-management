@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
+from api.business_day import business_today, day_bounds
 from api.currency import BASE_CURRENCY, convert_money, get_currency_settings, round_money
 from api.models import Session, SessionOrder, ResourceUnit
 
@@ -39,6 +40,7 @@ class SessionSerializer(serializers.ModelSerializer):
     final_total = serializers.SerializerMethodField()
     paused_duration = serializers.SerializerMethodField()
     payment_method = serializers.SerializerMethodField()
+    in_current_business_day = serializers.SerializerMethodField()
     resourceType = serializers.CharField(
         source="resource_unit.resource_type.code", read_only=True
     )
@@ -77,6 +79,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "final_total",
             "paused_duration",
             "payment_method",
+            "in_current_business_day",
         ]
 
     def get_durationMinutes(self, obj):
@@ -114,6 +117,14 @@ class SessionSerializer(serializers.ModelSerializer):
 
     def get_payment_method(self, obj):
         return "CASH"
+
+    def get_in_current_business_day(self, obj):
+        if not obj.end_time:
+            return False
+        # Cached on the shared context so a list makes one settings query.
+        if "business_day_start" not in self.context:
+            self.context["business_day_start"] = day_bounds(business_today())[0]
+        return obj.end_time >= self.context["business_day_start"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -158,6 +169,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "finalTotal": data["final_total"],
             "pausedDuration": data["paused_duration"],
             "metadata": data["metadata"],
+            "inCurrentBusinessDay": data["in_current_business_day"],
             "alerted10min": False,
         }
 

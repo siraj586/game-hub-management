@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { id: 'sessions', icon: 'fa-gamepad', labelKey: 'nav_sessions' },
   { id: 'sales', icon: 'fa-shopping-cart', labelKey: 'nav_sales', anyPerm: ['can_create_standalone_sale', 'can_manage_inventory', 'can_update_stock'] },
   { id: 'analytics', icon: 'fa-chart-pie', labelKey: 'nav_analytics', anyPerm: ['can_view_shift_report'], flag: 'view_analytics' },
+  { id: 'reports', icon: 'fa-file-lines', labelKey: 'nav_reports', anyPerm: ['can_view_shift_report'], flag: 'view_analytics' },
   { id: 'settings', icon: 'fa-cog', labelKey: 'nav_settings', admin: true },
 ];
 

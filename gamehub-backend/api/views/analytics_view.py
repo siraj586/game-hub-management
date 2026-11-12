@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_date
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from api.business_day import business_date_of, business_today, day_bounds, get_start_hour
 from api.currency import round_money
 from api.date_filters import get_date_range_from_request
 from api.models import MonthlyExpense, Session, Sale, SessionOrder
@@ -65,6 +66,17 @@ def _session_orders_cost(session):
     )
 
 
+def _day_revenue(day, start_hour):
+    start, end = day_bounds(day, start_hour=start_hour)
+    session_total = Session.objects.filter(end_time__gte=start, end_time__lt=end).aggregate(
+        total=Sum("final_cost")
+    )["total"] or 0
+    sale_total = Sale.objects.filter(timestamp__gte=start, timestamp__lt=end).aggregate(
+        total=Sum("total_price")
+    )["total"] or 0
+    return _money(session_total) + _money(sale_total)
+
+
 class AnalyticsView(APIView):
     permission_classes = [IsOwner]
 
@@ -77,13 +89,17 @@ class AnalyticsView(APIView):
         if detail_date < start_date or detail_date > end_date:
             detail_date = end_date
 
+        start_hour = get_start_hour()
+        range_start, range_end = day_bounds(start_date, end_date, start_hour=start_hour)
+
         sessions = Session.objects.all()
         completed = sessions.filter(
-            end_time__isnull=False,
-            end_time__date__range=(start_date, end_date),
+            end_time__gte=range_start,
+            end_time__lt=range_end,
         ).select_related("resource_unit", "resource_unit__resource_type").prefetch_related("orders")
         standalone_sales = Sale.objects.filter(
-            timestamp__date__range=(start_date, end_date)
+            timestamp__gte=range_start,
+            timestamp__lt=range_end,
         ).select_related("user").prefetch_related("items")
 
         # Current exchange rate (for ≈ local display on the frontend)
@@ -131,7 +147,7 @@ class AnalyticsView(APIView):
         net_profit_after_expenses = net_profit - float(monthly_expenses)
 
         most_used = (
-            sessions.filter(start_time__date__range=(start_date, end_date))
+            sessions.filter(start_time__gte=range_start, start_time__lt=range_end)
             .values("resource_unit__code", "resource_unit__resource_type__name")
             .annotate(count=Count("id"))
             .order_by("-count")[:5]
@@ -140,8 +156,8 @@ class AnalyticsView(APIView):
         daily_breakdown = []
         cursor = start_date
         while cursor <= end_date:
-            day_sessions = [session for session in completed if session.end_time.date() == cursor]
-            day_sales = [sale for sale in standalone_sales if sale.timestamp.date() == cursor]
+            day_sessions = [session for session in completed if business_date_of(session.end_time, start_hour) == cursor]
+            day_sales = [sale for sale in standalone_sales if business_date_of(sale.timestamp, start_hour) == cursor]
             session_revenue = sum((session.final_cost or Decimal("0") for session in day_sessions), Decimal("0"))
             session_order_revenue = sum((_session_orders_total(session) for session in day_sessions), Decimal("0"))
             session_order_cost = sum((_session_orders_cost(session) for session in day_sessions), Decimal("0"))
@@ -222,7 +238,7 @@ class AnalyticsView(APIView):
                 ],
             }
             for session in completed
-            if session.end_time.date() == detail_date
+            if business_date_of(session.end_time, start_hour) == detail_date
         ]
         detail_sales = [
             {
@@ -249,14 +265,19 @@ class AnalyticsView(APIView):
                 ],
             }
             for sale in standalone_sales
-            if sale.timestamp.date() == detail_date
+            if business_date_of(sale.timestamp, start_hour) == detail_date
         ]
 
         actual_usd_total = sum((day["actualUsdReceived"] for day in daily_breakdown), 0)
         actual_local_total = sum((day["actualLocalReceived"] for day in daily_breakdown), 0)
 
+        today = business_today(start_hour)
+
         return Response(
             {
+                "businessToday": today.isoformat(),
+                "todayRevenue": _day_revenue(today, start_hour),
+                "yesterdayRevenue": _day_revenue(today - timedelta(days=1), start_hour),
                 "activeSessions": active_count,
                 # revenueUsd: each invoice converted at its own frozen rate (excludes UNKNOWN)
                 "revenueUsd": float(revenue_usd),

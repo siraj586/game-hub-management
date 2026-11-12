@@ -22,6 +22,8 @@ from .views import (
     current_user_profile,
 )
 from .views.auth_view import bootstrap_register, bootstrap_status
+from .views.backup_view import BackupDownloadView, BackupListView, BackupRestoreView
+from .views.core_view import BusinessDaySettingsView
 
 router = DefaultRouter()
 router.register(r"feature-flags", FeatureFlagViewSet, basename="feature-flag")
@@ -48,5 +50,9 @@ urlpatterns = [
     path("currency-settings/", CurrencySettingsView.as_view(), name="currency-settings"),
     path("currency-settings/convert/", MoneyConversionView.as_view(), name="currency-convert"),
     path("monthly-expense-settings/", MonthlyExpenseSettingsView.as_view(), name="monthly-expense-settings"),
+    path("business-day-settings/", BusinessDaySettingsView.as_view(), name="business-day-settings"),
+    path("backups/", BackupListView.as_view(), name="backups"),
+    path("backups/<str:name>/download/", BackupDownloadView.as_view(), name="backup-download"),
+    path("backups/<str:name>/restore/", BackupRestoreView.as_view(), name="backup-restore"),
     path("", include(router.urls)),
 ]

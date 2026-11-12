@@ -21,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 import os
+import sys
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-dev-only')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
@@ -53,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "api.middleware.DailyBackupMiddleware",
 ]
 
 ROOT_URLCONF = "gamehub_project.urls"
@@ -110,7 +112,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = os.environ.get("GAMEHUB_TIME_ZONE", "Asia/Beirut")
 
 USE_I18N = True
 
@@ -148,3 +150,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
+# Database backups. Point GAMEHUB_BACKUP_DIR at a USB or cloud-synced folder so a
+# copy survives if this disk fails.
+BACKUP_DIR = os.environ.get("GAMEHUB_BACKUP_DIR", str(BASE_DIR / "backups"))
+AUTO_BACKUP_KEEP = 30
+AUTO_BACKUP_ENABLED = (
+    os.environ.get("GAMEHUB_AUTO_BACKUP", "True") == "True" and "test" not in sys.argv
+)

@@ -59,6 +59,17 @@ class Session(models.Model):
     class Meta:
         ordering = ["-start_time"]
 
+    @classmethod
+    def hide_from_activity(cls, sessions):
+        """Hide sessions from Recent Activity, keeping them for analytics."""
+        to_update = []
+        for session in sessions:
+            if not session.metadata.get("hidden_from_activity"):
+                session.metadata = {**session.metadata, "hidden_from_activity": True}
+                to_update.append(session)
+        cls.objects.bulk_update(to_update, ["metadata"])
+        return len(to_update)
+
     @property
     def pricing_strategy(self):
         return self.resource_unit.resource_type.pricing_strategy

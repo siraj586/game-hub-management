@@ -9,6 +9,8 @@ import SessionsPage from './pages/SessionsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import StandaloneSalesPage from './pages/StandaloneSalesPage';
 import SettingsPage from './pages/SettingsPage';
+import DailyReportsPage from './pages/DailyReportsPage';
+import SessionEndAlerts from './components/SessionEndAlerts';
 
 function MainApp() {
   const {
@@ -37,7 +39,7 @@ function MainApp() {
 
   const activePage =
     (currentPage === 'sales' && !canSalesArea) ||
-    (currentPage === 'analytics' && !canAnalytics) ||
+    ((currentPage === 'analytics' || currentPage === 'reports') && !canAnalytics) ||
     (currentPage === 'settings' && !canOpenAdminPanel)
       ? 'sessions'
       : currentPage;
@@ -46,6 +48,8 @@ function MainApp() {
     switch (activePage) {
       case 'analytics':
         return <AnalyticsPage />;
+      case 'reports':
+        return <DailyReportsPage />;
       case 'sales':
         return <StandaloneSalesPage />;
       case 'settings':
@@ -67,6 +71,7 @@ function MainApp() {
       onNavigate={setCurrentPage}
       canOpenAdminPanel={canOpenAdminPanel}
     >
+      <SessionEndAlerts />
       {renderPage()}
 
       <footer className="py-6 text-center opacity-60 text-xs dark:text-gray-500 text-gray-400">

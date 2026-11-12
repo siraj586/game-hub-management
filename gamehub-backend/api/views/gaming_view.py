@@ -45,6 +45,7 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
         "partial_update": [IsOwner],
         "correct": [IsOwner],
         "destroy": [IsOwner],
+        "clear_activity": [IsOwner],
     }
 
     def get_queryset(self):
@@ -196,6 +197,51 @@ class SessionViewSet(PermissionByActionMixin, viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        """Hide an ended session with a reason; its revenue stays in analytics."""
+        session = self.get_object()
+        if not session.end_time:
+            return Response(
+                {"error": "End the session before removing it."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reason = str(request.data.get("reason") or "").strip()
+        if not reason:
+            return Response(
+                {"error": "A reason is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        session.metadata = {
+            **session.metadata,
+            "hidden_from_activity": True,
+            "hidden_reason": reason,
+            "hidden_by": request.user.username,
+            "hidden_at": timezone.now().isoformat(),
+        }
+        session.save(update_fields=["metadata"])
+        self._audit(
+            AuditLog.ACTION_UPDATE,
+            str(session),
+            f"Hid session from Recent Activity. Reason: {reason}",
+            {"session_id": session.id, "reason": reason},
+        )
+        return Response(self.get_serializer(session).data)
+
+    @action(detail=False, methods=["post"])
+    @transaction.atomic
+    def clear_activity(self, request):
+        hidden_count = Session.hide_from_activity(
+            Session.objects.filter(end_time__isnull=False)
+        )
+        self._audit(
+            AuditLog.ACTION_UPDATE,
+            "Recent Activity",
+            f"Cleared Recent Activity ({hidden_count} sessions hidden).",
+            {"hidden_count": hidden_count},
+        )
+        return Response({"hidden_count": hidden_count})
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):

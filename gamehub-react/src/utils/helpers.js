@@ -104,25 +104,7 @@ export const getLiveCost = (session, refDate = new Date()) => {
   return ((activeMs / (1000 * 3600)) * session.pricePerHour) + (session.ordersCost || 0);
 };
 
-export const getTodayRevenue = (sessions) => {
-  const today = new Date().toDateString();
-  return sessions
-    .filter(s => s.endTime && new Date(s.endTime).toDateString() === today)
-    .reduce((sum, s) => sum + (s.totalCost || 0), 0);
-};
-
-export const getYesterdayRevenue = (sessions) => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toDateString();
-  return sessions
-    .filter(s => s.endTime && new Date(s.endTime).toDateString() === yesterdayStr)
-    .reduce((sum, s) => sum + (s.totalCost || 0), 0);
-};
-
-export const getRevenueTrend = (sessions) => {
-  const todayRev = getTodayRevenue(sessions);
-  const yesterdayRev = getYesterdayRevenue(sessions);
+export const getRevenueTrend = (todayRev = 0, yesterdayRev = 0) => {
   if (yesterdayRev === 0) {
     if (todayRev > 0) return { text: "+100% vs yesterday", up: true };
     return { text: "0% vs yesterday", up: true };

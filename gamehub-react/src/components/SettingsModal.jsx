@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import UserManagement from './UserManagement';
 import AuditLogsView from './AuditLogsView';
+import BackupsPanel from './BackupsPanel';
 import { hasPermission } from '../utils/permissions';
 
 const expenseCategories = [
@@ -203,6 +204,13 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
       label: t('tab_system_pos'),
       color: 'text-indigo-500',
       activeBg: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+    },
+    canFullConfig && {
+      id: 'backups',
+      icon: 'fa-database',
+      label: t('tab_day_backups'),
+      color: 'text-sky-500',
+      activeBg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
     },
     canManageUsers && {
       id: 'users',
@@ -641,6 +649,8 @@ const SettingsModal = ({ isOpen, onClose, embedded = false }) => {
                   </section>
                 </>
               )}
+
+              {activeTab === 'backups' && canFullConfig && <BackupsPanel />}
 
               {/* ════ USERS TAB ════ */}
               {activeTab === 'users' && canManageUsers && (

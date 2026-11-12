@@ -13,6 +13,7 @@ import {
   usdToLocal,
 } from '../utils/currency';
 import StatCard from '../components/StatCard';
+import HarvestDayModal from '../components/HarvestDayModal';
 
 const AnalyticsPage = () => {
   const {
@@ -24,7 +25,6 @@ const AnalyticsPage = () => {
     checkAutoEnd,
     saveCurrencySettings,
     showAlert,
-    showConfirm,
     t,
   } = useApp();
 
@@ -42,7 +42,7 @@ const AnalyticsPage = () => {
   // New UI state
   const [detailTab, setDetailTab] = useState('sessions');
   const [expandedSessionId, setExpandedSessionId] = useState(null);
-  const [harvestingDay, setHarvestingDay] = useState(false);
+  const [harvestDate, setHarvestDate] = useState(null);
 
   useEffect(() => { checkAutoEnd(); }, [checkAutoEnd]);
 
@@ -70,6 +70,8 @@ const AnalyticsPage = () => {
     }
   }, [analyticsPeriod, rangeStart, rangeEnd, selectedDetailDate, analytics]);
 
+  // fetchAnalytics only sets state after its request resolves.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
   const currencyOptions = useMemo(() => getCurrencyOptions(currencySettings), [currencySettings]);
@@ -99,7 +101,7 @@ const AnalyticsPage = () => {
   const sessionProductCost = dailyBreakdown.reduce((sum, day) => sum + Number(day.sessionProductCost || 0), 0);
   const selectedDaySummary = dailyBreakdown.find((day) => day.date === detail.date);
   const totalActive = activeAnalytics ? activeAnalytics.activeSessions : activeSessions.length;
-  const revenueTrend = getRevenueTrend(sessions);
+  const revenueTrend = getRevenueTrend(activeAnalytics?.todayRevenue, activeAnalytics?.yesterdayRevenue);
   const canViewNetProfit = permissions?.view_analytics;
   const canManageCurrency = canManageCurrencySettings(permissions);
   const canCloseShift = permissions?.can_close_shift;
@@ -172,45 +174,47 @@ const AnalyticsPage = () => {
     setSavingCurrency(false);
   };
 
-  const handleHarvestDay = async () => {
-    const targetDate = detail.date || selectedDetailDate;
-    const confirmed = await showConfirm({
-      title: t('harvest_day'),
-      message: t('confirm_close_day'),
-      confirmLabel: t('harvest_day'),
-    });
-    if (!confirmed) return;
+  const closeHarvestModal = () => setHarvestDate(null);
 
-    setHarvestingDay(true);
-    try {
-      const res = await axios.post('/daily-reports/close_day/', { date: targetDate });
-      const r = res.data;
-      const localLine =
-        dualCurrencyEnabled && Number(r.actual_local_received) > 0
-          ? `\n${localCurrency}: ${Number(r.actual_local_received).toLocaleString()}`
-          : '';
-      await showAlert(
-        `${t('total_revenue')}: ${formatUsd(r.total_revenue)}\n${t('usd_received')}: ${formatUsd(r.actual_usd_received)}${localLine}\n${t('net_profit')}: ${formatUsd(r.net_profit)}`,
-        { title: `${t('daily_report')} ✓`, variant: 'success' },
-      );
-    } catch (e) {
-      if (e?.response?.status === 409) {
-        await showAlert(e.response.data?.detail || 'This day is already closed.', {
-          title: t('daily_report'),
-          variant: 'warning',
-        });
-      } else {
-        await showAlert(t('failed_close_day'), { title: t('dialog_error'), variant: 'danger' });
-      }
-    } finally {
-      setHarvestingDay(false);
-    }
+  const handleHarvestDone = async (report) => {
+    closeHarvestModal();
+    await checkAutoEnd();
+    await fetchAnalytics();
+    const localLine =
+      dualCurrencyEnabled && Number(report.actual_local_received) > 0
+        ? `
+${localCurrency}: ${Number(report.actual_local_received).toLocaleString()}`
+        : '';
+    const differenceLine =
+      report.usd_variance !== null ? `
+${t('cash_difference')}: ${formatUsd(report.usd_variance)}` : '';
+    await showAlert(
+      `${t('total_revenue')}: ${formatUsd(report.total_revenue)}
+${t('usd_received')}: ${formatUsd(report.actual_usd_received)}${localLine}${differenceLine}
+${t('net_profit')}: ${formatUsd(report.net_profit)}`,
+      { title: `${t('daily_report')} ✓`, variant: 'success' },
+    );
+  };
+
+  const handleAlreadyClosed = async () => {
+    closeHarvestModal();
+    await checkAutoEnd();
+    await showAlert(t('harvest_already_closed'), { title: t('daily_report'), variant: 'warning' });
   };
 
   const toggleSession = (id) => setExpandedSessionId((prev) => (prev === id ? null : id));
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      {harvestDate && (
+        <HarvestDayModal
+          date={harvestDate}
+          localCurrency={dualCurrencyEnabled ? localCurrency : ''}
+          onClose={closeHarvestModal}
+          onDone={handleHarvestDone}
+          onAlreadyClosed={handleAlreadyClosed}
+        />
+      )}
 
       {/* ── Header ── */}
       <div className="flex justify-between items-start flex-wrap gap-3">
@@ -224,12 +228,11 @@ const AnalyticsPage = () => {
         {canCloseShift && (
           <button
             type="button"
-            onClick={handleHarvestDay}
-            disabled={harvestingDay}
+            onClick={() => setHarvestDate(detail.date || selectedDetailDate)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-sm font-black transition disabled:opacity-60 shadow-sm"
           >
-            <i className={`fas ${harvestingDay ? 'fa-spinner fa-spin' : 'fa-calendar-check'}`} />
-            {harvestingDay ? t('harvesting') : t('harvest_day')}
+            <i className="fas fa-calendar-check" />
+            {t('harvest_day')}
           </button>
         )}
       </div>

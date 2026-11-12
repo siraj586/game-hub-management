@@ -2,6 +2,7 @@ from rest_framework import status
 from .base import BaseAPITestCase
 from api.models import FeatureFlag, ResourceType, ResourceUnit, InventoryCategory, InventoryItem, Session, SessionOrder, Sale, SaleItem, DailyReport, MonthlyExpense
 from django.utils import timezone
+from api.business_day import business_today
 from datetime import timedelta
 from decimal import Decimal
 
@@ -105,7 +106,7 @@ class BulkSetupAndAnalyticsTests(BaseAPITestCase):
         self.authenticate('staff')
         rt = ResourceType.objects.create(name="PC", code="PC_TYPE", prefix="PC", base_price=10.00)
         ru = ResourceUnit.objects.create(resource_type=rt, code="PC-01")
-        selected_date = (timezone.localdate() - timedelta(days=1)).isoformat()
+        selected_date = (business_today() - timedelta(days=1)).isoformat()
 
         completed = Session.objects.create(customer_name="Done", resource_unit=ru)
         completed.end_time = timezone.now() - timedelta(days=1)
@@ -123,9 +124,44 @@ class BulkSetupAndAnalyticsTests(BaseAPITestCase):
         self.assertEqual(response.data["revenue_sessions"], "7.00")
         self.assertTrue(DailyReport.objects.filter(date=selected_date).exists())
 
+    def _create_ended_session(self, name, unit, end_time, final_cost=Decimal("7.00")):
+        session = Session.objects.create(customer_name=name, resource_unit=unit)
+        session.end_time = end_time
+        session.final_cost = final_cost
+        session.save()
+        return session
+
+    def test_close_day_hides_only_that_days_sessions_and_keeps_analytics(self):
+        self.authenticate('owner')
+        rt = ResourceType.objects.create(name="PC", code="PC_TYPE", prefix="PC", base_price=10.00)
+        ru = ResourceUnit.objects.create(resource_type=rt, code="PC-01")
+        closed = self._create_ended_session("Today", ru, timezone.now())
+        other_day = self._create_ended_session("Yesterday", ru, timezone.now() - timedelta(days=1))
+        running = Session.objects.create(customer_name="Running", resource_unit=ru)
+
+        response = self.client.post(
+            "/api/daily-reports/close_day/",
+            {"date": business_today().isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for session in (closed, other_day, running):
+            session.refresh_from_db()
+        self.assertTrue(closed.metadata.get("hidden_from_activity"))
+        self.assertFalse(other_day.metadata.get("hidden_from_activity"))
+        self.assertFalse(running.metadata.get("hidden_from_activity"))
+
+        sessions_response = self.client.get("/api/sessions/", {"page_size": 100})
+        listed = {s["id"]: s for s in sessions_response.data["results"]}
+        self.assertTrue(listed[closed.id]["metadata"]["hidden_from_activity"])
+
+        analytics = self.client.get(self.analytics_url, {"period": "today"})
+        self.assertEqual(analytics.data["completedRevenue"], 7.0)
+
     def test_monthly_expenses_are_deducted_from_monthly_net_profit(self):
         self.authenticate('owner')
-        today = timezone.localdate()
+        today = business_today()
         rt = ResourceType.objects.create(name="PC", code="PC_TYPE", prefix="PC", base_price=10.00)
         ru = ResourceUnit.objects.create(resource_type=rt, code="PC-01")
 
@@ -148,7 +184,7 @@ class BulkSetupAndAnalyticsTests(BaseAPITestCase):
 
     def test_analytics_returns_daily_reference_details(self):
         self.authenticate('owner')
-        today = timezone.localdate()
+        today = business_today()
         rt = ResourceType.objects.create(name="PC", code="PC_TYPE", prefix="PC", base_price=10.00)
         ru = ResourceUnit.objects.create(resource_type=rt, code="PC-01")
         category = InventoryCategory.objects.create(name="Cafe", code="CAFE")
@@ -208,7 +244,7 @@ class BulkSetupAndAnalyticsTests(BaseAPITestCase):
 
     def test_monthly_expense_post_updates_existing_month(self):
         self.authenticate('owner')
-        month = timezone.localdate().replace(day=1)
+        month = business_today().replace(day=1)
         MonthlyExpense.objects.create(month=month, rent=Decimal("25.00"))
 
         response = self.client.post(

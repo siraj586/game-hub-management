@@ -25,6 +25,32 @@ class SessionViewSetTests(BaseAPITestCase):
         self.cat1 = InventoryCategory.objects.create(name="Drinks", code="DRK")
         self.item1 = InventoryItem.objects.create(category=self.cat1, name="Cola", sale_price=2.50, quantity_in_stock=1)
 
+    def test_clear_activity_hides_ended_sessions_without_deleting(self):
+        self.authenticate('owner')
+        ended = Session.objects.create(customer_name="Done", resource_unit=self.ru1)
+        ended.end_time = timezone.now()
+        ended.final_cost = Decimal("7.00")
+        ended.save()
+        running = Session.objects.create(customer_name="Running", resource_unit=self.ru1)
+
+        response = self.client.post(f'{self.url}clear_activity/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["hidden_count"], 1)
+        self.assertEqual(Session.objects.count(), 2)
+        ended.refresh_from_db()
+        running.refresh_from_db()
+        self.assertTrue(ended.metadata.get("hidden_from_activity"))
+        self.assertFalse(running.metadata.get("hidden_from_activity"))
+
+        analytics = self.client.get('/api/analytics/', {"period": "today"})
+        self.assertEqual(analytics.data["completedRevenue"], 7.0)
+
+    def test_clear_activity_requires_owner(self):
+        self.authenticate('staff')
+        response = self.client.post(f'{self.url}clear_activity/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_create_session_no_permission(self):
         """Staff without can_start_session should get 403."""
         self.authenticate('staff')
